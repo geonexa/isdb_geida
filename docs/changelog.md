@@ -32,6 +32,9 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   new overview maps and templates; saved layouts keep their own setting.
 
 ### Fixed
+- `seed --boundaries` on PostgreSQL: loading full-resolution countries (adm0) in batches of
+  500 sent one INSERT larger than PostgreSQL's 1 GB message limit and the connection was
+  dropped. `load_admin_units` now also flushes a batch at 64 MB of geometry.
 - Frontend build on a fresh clone: `npm run build` failed the type-check ("Cannot find module
   '@geolibre/embed'") because the package's `dist/` is git-ignored and was never built.
   `scripts/predev.mjs` now compiles it (always on build, when missing in dev).

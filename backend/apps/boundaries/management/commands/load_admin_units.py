@@ -22,6 +22,10 @@ from django.db import transaction
 from apps.boundaries.models import AdminUnit
 
 BATCH = 500
+# PostgreSQL rejects a message over 1 GB and drops the connection. Full-resolution
+# countries (adm0) reach that well before 500 rows, so a batch is also flushed by
+# geometry size (WKB bytes; the query carries them hex-encoded, about twice that).
+BATCH_BYTES = 64 * 1024 * 1024
 GID_RE = re.compile(r"^[A-Z0-9]{3}(\.[0-9.]+_\d+)?$")
 BOUNDARIES = settings.DATA_DIR / "boundaries"
 DEFAULT_FULL = os.environ.get("GADM_GPKG") or str(BOUNDARIES / "gadm41_adm0-3.gpkg")
@@ -90,7 +94,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"{name}: removed {deleted}")
                 # gid is unique across all levels, so check against everything loaded.
                 existing = set(AdminUnit.objects.values_list("gid", flat=True))
-                batch, created, skipped, bad = [], 0, 0, 0
+                batch, batch_bytes, created, skipped, bad = [], 0, 0, 0, 0
                 for f in lyr:
                     iso3 = f.get("iso3")
                     if countries and iso3 not in countries:
@@ -121,10 +125,11 @@ class Command(BaseCommand):
                         **{k: (f.get(k) or "") for k in TEXT_FIELDS},
                     )
                     batch.append(unit)
-                    if len(batch) >= BATCH:
+                    batch_bytes += len(geom.wkb) + (len(unit.geom_display.wkb) if unit.geom_display else 0)
+                    if len(batch) >= BATCH or batch_bytes >= BATCH_BYTES:
                         AdminUnit.objects.bulk_create(batch)
                         created += len(batch)
-                        batch = []
+                        batch, batch_bytes = [], 0
                         if created % 10_000 == 0:
                             self.stdout.write(f"{name}: {created:,} loaded…")
                 if batch:
