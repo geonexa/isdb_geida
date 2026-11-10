@@ -1,10 +1,13 @@
 // Prepares the files `vite` serves that aren't produced by Vite itself:
 //   - the GeoLibre processing engine (geolibre-wasm) in public/vendor (Geo-Portal tools);
 //   - the JupyterLite site behind the Analytics Notebook panel (optional: needs
-//     `pip install -r gis/apps/web/jupyterlite/requirements.txt`, skipped otherwise).
+//     `pip install -r gis/apps/web/jupyterlite/requirements.txt`, skipped otherwise);
+//   - @geolibre/embed (gis/packages/embed/dist, git-ignored), whose types GeoLibre
+//     imports: a fresh clone has no dist/ and the type-check fails without it.
 //   node scripts/predev.mjs           dev: only what is missing
-//   node scripts/predev.mjs --build   build: refresh both
+//   node scripts/predev.mjs --build   build: refresh all
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,3 +21,9 @@ function run(script, args) {
 
 run("scripts/copy-engine.mjs", build ? [] : ["--if-missing"]);
 run("gis/scripts/build-jupyterlite.mjs", build ? [] : ["--if-missing"]);
+
+const embed = join(root, "gis", "packages", "embed");
+if (build || !existsSync(join(embed, "dist", "index.d.ts"))) {
+  run("node_modules/typescript/bin/tsc", ["-p", join(embed, "tsconfig.build.json")]);
+  console.log("@geolibre/embed built to gis/packages/embed/dist");
+}

@@ -32,6 +32,9 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   new overview maps and templates; saved layouts keep their own setting.
 
 ### Fixed
+- Frontend build on a fresh clone: `npm run build` failed the type-check ("Cannot find module
+  '@geolibre/embed'") because the package's `dist/` is git-ignored and was never built.
+  `scripts/predev.mjs` now compiles it (always on build, when missing in dev).
 - Data Catalog: the IsDB member countries layer (on by default) now draws; its file path
   pointed to a location the server doesn't serve.
 
