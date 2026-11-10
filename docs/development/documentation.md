@@ -36,12 +36,23 @@ the navigation. Fix warnings; don't switch strict mode off.
 
 ## Publish
 
-The built `site/` folder is static HTML. Any of these work:
+The site is published to **GitHub Pages** at <https://geonexa.github.io/isdb_geida/> by the
+workflow `.github/workflows/docs.yml`. It runs on every push to `main` that changes `docs/`,
+`mkdocs.yml` or the workflow, and can be run by hand from the repository's **Actions** tab
+(*Docs* → *Run workflow*). It installs `docs/requirements.txt`, runs `mkdocs build --strict`
+(a broken link fails the run and nothing is published) and deploys `site/`.
+
+One-time setup, by a repository admin: **Settings → Pages → Build and deployment → Source:
+GitHub Actions**.
+
+Pages excluded in `mkdocs.yml` (`exclude_docs`: plan, decisions, planning notes) are not on the
+site, but they are still in the repository, so anyone who can see the repository can read them.
+
+The built `site/` folder is plain static HTML, so it can also be served elsewhere:
 
 | Option | How |
 |---|---|
 | Same server as GEIDA | Copy `site/` to e.g. `/var/www/geida-docs` and add an Apache `Alias /docs/ /var/www/geida-docs/` |
-| GitHub Pages | `mkdocs gh-deploy` from a clone with push rights |
 | Internal file share | Zip `site/` and open `index.html` (search works offline) |
 
 ## Structure

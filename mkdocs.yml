@@ -3,6 +3,10 @@
 site_name: GEIDA Documentation
 site_description: IsDB Geoinformatics Data Platform — introduction, architecture, setup, deployment and release history.
 site_author: Terra, Expo City Dubai
+site_url: https://geonexa.github.io/isdb_geida/
+repo_url: https://github.com/geonexa/isdb_geida
+repo_name: geonexa/isdb_geida
+edit_uri: edit/main/docs/
 copyright: "&copy; 2026 Islamic Development Bank · Developed by Terra, Expo City Dubai"
 docs_dir: docs
 site_dir: site

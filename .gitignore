@@ -11,8 +11,7 @@ cred/*
 !cred/README.md
 
 # --- Local-only notes ---------------------------------------------------------
-local/*
-!local/README.md
+local
 
 # --- Python / Django ----------------------------------------------------------
 __pycache__/

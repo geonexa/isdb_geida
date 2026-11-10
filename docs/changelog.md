@@ -31,6 +31,8 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   pointed to a location the server doesn't serve.
 
 ### Added
+- Documentation is published to GitHub Pages (<https://geonexa.github.io/isdb_geida/>) by the
+  `Docs` GitHub Actions workflow on every push to `main` that changes the docs.
 - **Field boundaries (Fields of The World, 2nd Edition)** in the Data Catalog (Agriculture)
   and in the project's Data layers: about 1.24 billion field polygons from Sentinel-2,
   yearly 2017–2025, CC BY 4.0. Read in the browser straight from the PMTiles archives on
