@@ -1,0 +1,11 @@
+Django>=5.2,<6.1
+python-dotenv
+gunicorn
+psycopg[binary]
+openpyxl
+rasterio            # comes from conda-forge via environment.yml (pip sees it installed)
+scipy
+pyyaml
+numpy
+shapely>=2.0         # conda-forge via environment.yml (same GEOS as GDAL); vector analysis helpers
+celery[redis]>=5.4

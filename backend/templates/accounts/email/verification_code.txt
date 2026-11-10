@@ -1,0 +1,9 @@
+Hello {{ user.first_name|default:user.username }},
+
+Your GEIDA verification code is:
+
+    {{ code }}
+
+It expires in {{ minutes }} minutes. If you didn't create a GEIDA account, you can ignore this email.
+
+GEIDA - IsDB Geoinformatics Data Platform

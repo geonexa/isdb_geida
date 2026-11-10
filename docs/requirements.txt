@@ -1,0 +1,8 @@
+# Documentation site (MkDocs + Material). Not needed to run GEIDA.
+# Installed into the same conda env as the backend (pure-Python packages, no conflict
+# with the conda-forge geospatial libraries):
+#   conda activate geida
+#   pip install -r docs/requirements.txt
+#   mkdocs serve                        # http://127.0.0.1:8001 (run from the repository root)
+mkdocs==1.6.1
+mkdocs-material==9.6.23

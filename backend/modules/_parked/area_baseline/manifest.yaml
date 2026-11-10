@@ -1,0 +1,35 @@
+id: area_baseline
+version: 0.1.0
+title: Area baseline
+question: What is in the project area? Terrain, land cover and people.
+description: >
+  Clips the elevation model, land cover and population to the area of influence,
+  derives slope, and summarises them per administrative unit. A context baseline
+  for any sector, run at preparation and repeated at completion.
+status: curated
+category: area_profile
+themes: [water, agriculture, education, health, transport, energy, urban, infrastructure]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: copernicus_dem_30, label: Elevation}
+    - {name: landcover, type: raster, default: esa_worldcover_2021, label: Land cover}
+    - {name: population, type: raster, default: worldpop_2020, label: Population}
+parameters:
+  - {name: slope_threshold_deg, type: number, default: 15, min: 1, max: 60, label: Steep slope threshold (degrees)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: headline}
+  - {type: table, name: per_zone}
+  - {type: table, name: landcover}
+  - {type: image, name: slope}
+  - {type: image, name: landcover_map}
+steps:
+  - clip: [dem, landcover, population]
+  - slope: dem
+  - zonal_stats: [mean slope, share steep, population sum, land cover areas]
+citations: [Copernicus DEM GLO-30, ESA WorldCover 2021, WorldPop 2020]
+acceptance:
+  moroto_corridor: {share_steeper_than_15deg: 0.11, mean_slope_deg: 5.8}

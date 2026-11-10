@@ -1,0 +1,49 @@
+id: area_profile
+version: 0.2.0
+title: Area profile
+question: What is mapped in the project area?
+description: >
+  A one-page inventory of everything OpenStreetMap holds for the area of influence:
+  settlements, buildings, schools, health facilities, markets and public services,
+  roads and paths, rivers and water bodies, water points and power assets. Counts and
+  lengths per category and per administrative unit, the named places, and the OSM
+  snapshot the numbers come from. A starting point for any sector.
+status: curated
+category: area_profile
+themes: [water, agriculture, education, health, transport, energy, urban, infrastructure]
+phases: [preparation, implementation, completion]
+cri: []
+# Each optional input's color / radius / width styles its map layer.
+inputs:
+  required:
+    - {name: places, type: vector_point, default: osm_places, label: Named places}
+  optional:
+    - {name: buildings, type: vector_point, default: osm_buildings_points, label: Buildings, color: "#868E96", radius: 1.6}
+    - {name: schools, type: vector_point, default: osm_schools, label: Schools, color: "#7048E8", radius: 4.5}
+    - {name: health, type: vector_point, default: osm_health, label: Health facilities, color: "#E03131", radius: 4.5}
+    - {name: markets, type: vector_point, default: osm_markets, label: Markets, color: "#F08C00", radius: 4}
+    - {name: worship, type: vector_point, default: osm_worship, label: Places of worship, color: "#2B8A3E", radius: 3.5}
+    - {name: public_services, type: vector_point, default: osm_public_services, label: Public services, color: "#1971C2", radius: 4}
+    - {name: finance, type: vector_point, default: osm_finance, label: Banks and cash points, color: "#C2255C", radius: 3.5}
+    - {name: roads, type: vector_line, default: osm_roads, label: Roads, color: "#E8590C", width: 1.6}
+    - {name: paths, type: vector_line, default: osm_paths, label: Paths, color: "#A47148", width: 0.8}
+    - {name: railways, type: vector_line, default: osm_railways, label: Railways, color: "#343A40", width: 1.8}
+    - {name: waterways, type: vector_line, default: osm_waterways, label: Rivers and streams, color: "#1C7ED6", width: 1.2}
+    - {name: water_bodies, type: vector_polygon, default: osm_water_bodies, label: Lakes and reservoirs, color: "#4DABF7"}
+    - {name: water_points, type: vector_point, default: osm_water_points, label: Water points, color: "#0CA678", radius: 4}
+    - {name: power_lines, type: vector_line, default: osm_power_lines, label: Power lines, color: "#FAB005", width: 1.2}
+    - {name: power_assets, type: vector_point, default: osm_power_assets, label: Power plants and substations, color: "#F59F00", radius: 4.5}
+parameters:
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: table, name: inventory}
+  - {type: table, name: per_zone}
+  - {type: table, name: place_list}
+  - {type: vector, name: layer_<input>}   # one map layer per input that has a colour
+  - {type: vector, name: places_map}
+  - {type: file, name: csv}
+steps:
+  - for_each_layer: [count points, km of lines, km² of polygons]
+  - by_zone: {}
+citations: [OpenStreetMap]

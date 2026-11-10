@@ -1,0 +1,87 @@
+/* Data catalog window: draggable floating window with search, layer groups, switches
+   and info panels. Shared by the Geo-Portal (static markup driven by its engine) and
+   the Data layers list in the project Analyses tab (features/projects/workspace/satellite.tsx). */
+.gp-icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: none; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
+.gp-icon-btn:hover { background: var(--sand); color: var(--ink); }
+.gp-icon-btn[aria-expanded="true"].gp-info-btn { color: var(--teal); }
+.gp-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.gp-tools { padding: 14px 18px 12px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.gp-search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid #CFCFD3; color: var(--ink-muted); }
+.gp-search:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(201,162,91,.35); }
+.gp-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: .95rem; color: var(--ink); }
+.gp-filter { display: flex; gap: 6px; }
+.gp-filter button { height: 30px; padding: 0 12px; border: 1px solid var(--line); background: var(--paper); font-size: .85rem; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.gp-filter button:hover { border-color: var(--ink); }
+.gp-filter button.is-on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.gp-group { border-bottom: 1px solid var(--line); }
+.gp-group summary {
+  display: flex; align-items: center; gap: 10px; padding: 12px 18px; cursor: pointer; list-style: none;
+  font-size: .82rem; font-weight: 700; color: var(--ink-2); background: var(--sand); user-select: none;
+}
+.gp-group summary::-webkit-details-marker { display: none; }
+.gp-group-type { display: inline-grid; color: var(--teal); }
+.gp-group-type .lucide { width: 15px; height: 15px; }
+.gp-group-name { flex: 1; }
+.gp-group-n { font-weight: 600; color: var(--ink-muted); }
+.gp-chev { width: 16px; height: 16px; color: var(--ink-muted); transition: transform .15s; }
+.gp-group:not([open]) .gp-chev { transform: rotate(-90deg); }
+.gp-item { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 4px 12px; padding: 10px 12px 10px 18px; border-top: 1px solid var(--line); }
+.gp-group ul li:first-child { border-top: 0; }
+.gp-item:hover { background: #FAFAFA; }
+.gp-item-body { min-width: 0; }
+.gp-item-name { display: block; font-size: .95rem; font-weight: 600; line-height: 1.3; }
+.gp-item-meta { display: block; font-size: .8rem; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-item.is-planned .gp-item-name { color: var(--ink-muted); }
+.gp-badge { padding: 2px 7px; font-size: .72rem; font-weight: 700; background: var(--sand); color: var(--ink-muted); }
+.gp-info { grid-column: 1 / -1; margin: 6px 0 4px; padding: 12px; background: var(--sand); font-size: .88rem; }
+.gp-info p { margin: 0 0 10px; color: var(--ink-2); }
+.gp-info dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.gp-info dt { font-size: .75rem; color: var(--ink-muted); }
+.gp-info dd { margin: 0; font-weight: 600; font-size: .85rem; }
+.gp-switch { position: relative; display: inline-flex; cursor: pointer; }
+.gp-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.gp-switch-ui { width: 36px; height: 20px; background: #D4D4D8; border-radius: 999px; position: relative; transition: background-color .15s; }
+.gp-switch-ui::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
+.gp-switch input:checked + .gp-switch-ui { background: var(--green); }
+.gp-switch input:checked + .gp-switch-ui::after { transform: translateX(16px); }
+.gp-switch input:focus-visible + .gp-switch-ui { outline: 2px solid var(--gold); outline-offset: 2px; }
+.gp-switch input:disabled + .gp-switch-ui { background: #EBEBEE; cursor: not-allowed; }
+.gp-switch input:disabled { cursor: not-allowed; }
+.gp-item.is-loading .gp-item-meta::after { content: " \00b7 loading\2026"; color: var(--teal); }
+.gp-empty { padding: 24px 18px; color: var(--ink-muted); }
+.gp-catwin {
+  position: absolute; z-index: 8; top: 66px; left: 14px;
+  width: 400px; height: min(640px, calc(100% - 96px));
+  min-width: 300px; min-height: 260px; max-width: calc(100% - 28px); max-height: calc(100% - 28px);
+  display: flex; flex-direction: column; background: var(--paper);
+  border: 1px solid var(--line); box-shadow: 0 18px 48px rgba(18,17,20,.22);
+  resize: both; overflow: hidden;
+}
+.gp-catwin[hidden] { display: none; }
+.gp-catwin-head {
+  display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 6px;
+  border-bottom: 1px solid var(--line); background: var(--paper);
+  cursor: grab; user-select: none; touch-action: none;
+}
+.gp-catwin-head:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.gp-catwin.is-dragging { box-shadow: 0 24px 64px rgba(18,17,20,.3); }
+.gp-catwin.is-dragging .gp-catwin-head { cursor: grabbing; }
+.gp-grip { color: var(--ink-muted); width: 18px; height: 18px; }
+.gp-catwin-title { flex: 1; min-width: 0; }
+.gp-catwin-title h2 { margin: 0; font-size: 1.02rem; letter-spacing: -.01em; }
+.gp-catwin-title p { margin: 0; font-size: .78rem; color: var(--ink-muted); }
+.gp-catwin-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.gp-catwin .gp-tools { padding: 12px 16px; }
+.gp-catwin .gp-group summary { padding: 10px 16px; position: sticky; top: 0; z-index: 1; }
+.gp-catwin .gp-item { padding: 10px 10px 10px 16px; }
+.gp-item.is-on { background: #F3F8F4; }
+.gp-item.is-on .gp-item-name::after { content: "On map"; margin-left: 8px; padding: 1px 6px; font-size: .68rem; font-weight: 700; color: var(--green); border: 1px solid currentColor; vertical-align: 2px; }
+
+@media (max-width: 720px) {
+  .gp-catwin {
+    left: 0 !important; right: 0; top: auto !important; bottom: 0;
+    width: auto !important; height: 72% !important; max-width: none; resize: none;
+  }
+  .gp-catwin-head { cursor: default; }
+  .gp-grip { display: none; }
+}

@@ -1,0 +1,162 @@
+# OpenStreetMap tag taxonomy: what GEIDA means by "schools", "roads", "water points"...
+#
+# Analysis modules ask for layers by id (ctx.dataset -> osm_<id>), never by raw tags,
+# so changing what counts as a health facility is an edit here, not in code.
+# Read by apps/analysis/osm/taxonomy.py.
+#
+# Each layer:
+#   label      shown in the UI and run logs
+#   category   area_profile | social | access | built | networks (for grouping)
+#   geometry   point | line | polygon. Point layers turn areas (closed ways,
+#              multipolygons) into a point on their surface.
+#   match      list of rules; a feature belongs to the layer if ANY rule matches.
+#              A rule is {key: [values]} (all keys must match); "*" = any value.
+#   exclude    optional rules that remove features again (e.g. building=no)
+#   keep       tags copied onto each feature (name and osm_id always are)
+#
+# First version adapted from the OSM tag rules in Aleph (alephgeo/layers.py,
+# osm.py; MIT, © 2026 Belluxx) and extended for development-finance use.
+
+version: 1
+
+layers:
+  # --- Social services -------------------------------------------------------
+  schools:
+    label: Schools and education
+    category: social
+    geometry: point
+    match:
+      - {amenity: [school, kindergarten, college, university]}
+    keep: [amenity, isced:level, operator, operator:type]
+
+  health:
+    label: Health facilities
+    category: social
+    geometry: point
+    match:
+      - {amenity: [hospital, clinic, doctors]}
+      - {healthcare: [hospital, clinic, centre, doctor, health_post, birthing_center]}
+    keep: [amenity, healthcare, healthcare:level, operator, operator:type, beds]
+
+  markets:
+    label: Markets
+    category: social
+    geometry: point
+    match:
+      - {amenity: [marketplace]}
+    keep: [amenity, opening_hours, operator]
+
+  worship:
+    label: Places of worship
+    category: social
+    geometry: point
+    match:
+      - {amenity: [place_of_worship]}
+    keep: [amenity, religion]
+
+  public_services:
+    label: Public services
+    category: social
+    geometry: point
+    match:
+      - {amenity: [townhall, police, fire_station, courthouse, post_office, community_centre,
+                   social_facility, library, prison]}
+      - {office: [government]}
+    keep: [amenity, office, operator]
+
+  finance:
+    label: Banks and cash points
+    category: social
+    geometry: point
+    match:
+      - {amenity: [bank, atm, bureau_de_change, money_transfer]}
+    keep: [amenity, operator]
+
+  # --- Built environment -----------------------------------------------------
+  buildings:
+    label: Buildings
+    category: built
+    geometry: polygon
+    match:
+      - {building: ["*"]}
+    exclude:
+      - {building: ["no", "none"]}
+    keep: [building, building:levels]
+
+  places:
+    label: Named places (settlements)
+    category: built
+    geometry: point
+    match:
+      - {place: [city, town, village, hamlet, suburb, neighbourhood, quarter, locality, isolated_dwelling]}
+    keep: [place, population]
+
+  # --- Infrastructure networks -----------------------------------------------
+  roads:
+    label: Roads
+    category: networks
+    geometry: line
+    match:
+      - {highway: [motorway, trunk, primary, secondary, tertiary, unclassified, residential,
+                   service, track, living_street, road,
+                   motorway_link, trunk_link, primary_link, secondary_link, tertiary_link]}
+    keep: [highway, surface, ref, bridge, lanes]
+
+  paths:
+    label: Paths and footways
+    category: networks
+    geometry: line
+    match:
+      - {highway: [footway, path, cycleway, steps, pedestrian, bridleway]}
+    keep: [highway, surface]
+
+  railways:
+    label: Railways
+    category: networks
+    geometry: line
+    match:
+      - {railway: [rail, light_rail, narrow_gauge, subway, tram]}
+    keep: [railway, usage, gauge]
+
+  waterways:
+    label: Rivers, streams and canals
+    category: networks
+    geometry: line
+    match:
+      - {waterway: [river, stream, canal, drain, ditch]}
+    keep: [waterway, intermittent]
+
+  water_bodies:
+    label: Lakes, reservoirs and ponds
+    category: networks
+    geometry: polygon
+    match:
+      - {natural: [water]}
+      - {landuse: [reservoir, basin]}
+    keep: [natural, water, landuse, intermittent]
+
+  water_points:
+    label: Water points
+    category: networks
+    geometry: point
+    match:
+      - {amenity: [drinking_water, water_point]}
+      - {man_made: [water_well, water_tap, borehole, water_tower, water_works, reservoir_covered, storage_tank]}
+      - {natural: [spring]}
+    keep: [amenity, man_made, natural, pump, drinking_water, operator]
+
+  power_lines:
+    label: Power lines
+    category: networks
+    geometry: line
+    match:
+      - {power: [line, minor_line, cable]}
+    keep: [power, voltage, operator]
+
+  power_assets:
+    label: Power plants and substations
+    category: networks
+    geometry: point
+    match:
+      - {power: [plant, generator, substation, transformer]}
+    keep: [power, plant:source, generator:source, voltage, operator]

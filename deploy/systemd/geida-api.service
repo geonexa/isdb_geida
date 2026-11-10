@@ -1,0 +1,25 @@
+# GEIDA Django API (Gunicorn on 127.0.0.1:8012, behind Apache).
+#   sudo cp deploy/systemd/geida-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now geida-api
+# Adjust User, paths and the conda env location to the server.
+
+[Unit]
+Description=GEIDA API (Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ecduser
+Group=ecduser
+WorkingDirectory=/home/ecduser/geida_platform_react/backend
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+ExecStart=/home/ecduser/miniconda3/envs/geida/bin/gunicorn config.wsgi:application \
+    --bind 127.0.0.1:8012 --workers 3 --timeout 180 \
+    --access-logfile - --error-logfile -
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

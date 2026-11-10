@@ -1,0 +1,20 @@
+/* Confirm dialog (shared/components/Confirm.tsx): GEIDA's themed window.confirm. */
+.cfm-backdrop { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; padding: 20px; background: rgba(18, 17, 20, .45); animation: cfm-fade .12s ease-out; }
+.cfm { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; width: min(460px, 100%); padding: 22px 22px 18px; background: var(--paper); border-top: 3px solid var(--teal); box-shadow: var(--shadow-pop); font-family: var(--font); color: var(--ink); animation: cfm-in .16s ease-out; }
+.cfm-danger { border-top-color: var(--danger); }
+.cfm.cfm-danger { border-top-color: var(--danger); }
+.cfm-icon { display: grid; place-items: center; width: 38px; height: 38px; background: #e6f0f2; color: var(--teal); }
+.cfm-danger .cfm-icon { background: #fdecec; color: var(--danger); }
+.cfm-icon .lucide { width: 20px; height: 20px; }
+.cfm-text h2 { margin: 6px 28px 0 0; font-size: 1.08rem; line-height: 1.3; letter-spacing: -.01em; }
+.cfm-msg { margin-top: 6px; font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
+.cfm-msg p { margin: 0 0 .5em; }
+.cfm-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.cfm-actions .btn { min-width: 92px; cursor: pointer; }
+.cfm-x { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
+.cfm-x:hover { background: var(--sand); color: var(--ink); }
+.cfm-x .lucide { width: 16px; height: 16px; }
+.btn.cfm-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn.cfm-danger:hover { background: #a61f1f; border-color: #a61f1f; }
+@keyframes cfm-fade { from { opacity: 0; } }
+@keyframes cfm-in { from { opacity: 0; transform: translateY(6px) scale(.98); } }

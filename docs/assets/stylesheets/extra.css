@@ -1,0 +1,23 @@
+/* GEIDA brand on Material for MkDocs: IsDB green for actions, Terra teal for the header. */
+:root {
+  --md-primary-fg-color: #0B3B47;
+  --md-primary-fg-color--light: #134B59;
+  --md-primary-fg-color--dark: #072A33;
+  --md-accent-fg-color: #2F8F4E;
+  --md-typeset-a-color: #1F7A41;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0B3B47;
+  --md-accent-fg-color: #5CC07F;
+  --md-typeset-a-color: #7FD39C;
+}
+/* The GEIDA logo sits on white: give it a white plate in the teal header. */
+.md-header__button.md-logo { padding: 3px 8px; margin: 4px; background: #fff; border-radius: 3px; }
+.md-header__button.md-logo img { height: 32px; width: auto; }
+.md-typeset h1 { font-weight: 700; letter-spacing: -.02em; color: var(--md-default-fg-color); }
+.md-typeset table:not([class]) { font-size: .74rem; }
+.md-typeset table:not([class]) th { background: var(--md-default-fg-color--lightest); }
+
+/* Home page */
+.geida-hero { padding: 1.2rem 0 .4rem; }
+.geida-hero p.lead { font-size: 1.05rem; max-width: 46rem; color: var(--md-default-fg-color--light); }

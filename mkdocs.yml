@@ -1,0 +1,129 @@
+# GEIDA documentation site. Source: docs/. Build: `mkdocs build` -> site/ (git-ignored).
+# Setup: docs/development/documentation.md
+site_name: GEIDA Documentation
+site_description: IsDB Geoinformatics Data Platform — introduction, architecture, setup, deployment and release history.
+site_author: Terra, Expo City Dubai
+copyright: "&copy; 2026 Islamic Development Bank · Developed by Terra, Expo City Dubai"
+docs_dir: docs
+site_dir: site
+dev_addr: 127.0.0.1:8001
+strict: true
+
+theme:
+  name: material
+  logo: assets/images/geida-logo.png
+  favicon: assets/images/geida-logo.png
+  font:
+    text: Outfit
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: {icon: material/weather-sunny, name: Light mode}
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+not_in_nav: |
+  home-images.md
+
+# Internal working records: kept in the repository, not published on the site.
+exclude_docs: |
+  plan.md
+  decisions.md
+  specs/gee-replacement.md
+  specs/project-map-rs-and-export.md
+  planning/
+
+nav:
+  - Home: index.md
+  - Introduction:
+      - introduction/index.md
+      - The IsDB project cycle: introduction/project-cycle.md
+      - Features: introduction/features.md
+      - Users and roles: introduction/roles.md
+      - Glossary: introduction/glossary.md
+  - Architecture:
+      - architecture/index.md
+      - Backend: architecture/backend.md
+      - Frontend: architecture/frontend.md
+      - Data sources: architecture/data-sources.md
+      - Analysis modules: architecture/analysis-modules.md
+      - Security: architecture/security.md
+  - Setup:
+      - setup/index.md
+      - Local development: setup/local-development.md
+      - Configuration: setup/configuration.md
+      - Reference data: setup/reference-data.md
+      - Troubleshooting: setup/troubleshooting.md
+  - Deployment:
+      - deploy/index.md
+      - First-time installation: deploy/first-install.md
+      - Releasing an update: deploy/releases.md
+      - Operations: deploy/operations.md
+  - Development:
+      - development/index.md
+      - Adding an analysis module: development/adding-a-module.md
+      - Testing: development/testing.md
+      - Maintaining the documentation: development/documentation.md
+  - Changelog: changelog.md
+  - Updates:
+      - updates/index.md
+      - 2026-11-09 Documentation and branding: updates/2026-11-09.md
+      - 2026-11-06 Raster layer service: updates/2026-11-06.md
+      - 2026-11-02 Repository restructure: updates/2026-11-02.md
+  - Reference:
+      - Open map services: open-map-services.md
+      - Specifications:
+          - Project onboarding: specs/project-onboarding.md
+          - Analysis modules: specs/analysis-modules.md
+          - OSM analysis catalogue: specs/osm-analysis-catalogue.md
+          - Moroto case study gap analysis: specs/moroto-case-study-gap-analysis.md

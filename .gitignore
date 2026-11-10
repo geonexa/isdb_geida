@@ -1,0 +1,57 @@
+# --- Secrets ------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+# Keys and service accounts live in cred/; only its README is tracked.
+cred/*
+!cred/README.md
+
+# --- Local-only notes ---------------------------------------------------------
+local/*
+!local/README.md
+
+# --- Python / Django ----------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+backend/db.sqlite3
+backend/db.sqlite3-journal
+backend/staticfiles/
+backend/media/
+*.log
+
+# Large local datasets (GADM boundaries, dataset overrides, download cache):
+# copied onto each machine, never committed. Only the README is tracked.
+backend/data/*
+!backend/data/README.md
+
+# --- Node / frontend ----------------------------------------------------------
+node_modules/
+frontend/dist/
+frontend/public/vendor/
+# GIS workspace (GeoLibre) build output and generated files
+frontend/gis/apps/web/dist/
+frontend/gis/apps/web/public/jupyterlite/
+frontend/gis/apps/web/src/lib/pyodide/vector_ops.generated.py
+frontend/gis/packages/embed/dist/
+*.tsbuildinfo
+
+# --- Geospatial working files -------------------------------------------------
+*.tif
+*.tiff
+
+# --- OS and editors -----------------------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+
+# Documentation site (mkdocs)
+/site/

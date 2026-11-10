@@ -1,0 +1,152 @@
+@layer base {
+  /* GEIDA theme: the platform's own palette (see frontend/src/styles/geida.css).
+     ink #121114 · teal #0B3B47 · green #2F8F4E · gold #C9A25B · sand #F5F5F5 · line #E4E4E4,
+     square corners and soft ink shadows, matching the Geo-Portal. */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 260 8% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 260 8% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 8% 7%;
+    /* Teal: GEIDA's brand colour (buttons, selected states, links). */
+    --primary: 192 73% 16%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 260 8% 7%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 240 2% 37%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 260 8% 7%;
+    --destructive: 0 66% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 89%;
+    --input: 240 4% 82%;
+    /* Gold focus ring, as on the GEIDA pages. */
+    --ring: 39 50% 57%;
+    /* Square corners. The derived sm/md steps clamp to 0. */
+    --radius: 0px;
+    --elev-penumbra: hsl(260 8% 7% / 0.07);
+    --elev-umbra: hsl(260 8% 7% / 0.12);
+  }
+
+  /* Dark mode is built as an explicit elevation ladder. Previously --background,
+     --card and --popover were all 222.2 84% 4.9%, and --border, --input,
+     --muted, --secondary and --accent were all 217.2 32.6% 17.5% — five tokens,
+     one colour — so panels, dialogs and menus were indistinguishable from the
+     app canvas and only a 1px border separated them. Each step below is a
+     distinct surface:
+
+       background  9%   app canvas / base chrome
+       card       12%   toolbar, docked panels
+       popover    15%   menus, tooltips, dialogs
+       muted      20%   inset fills (status bar, wells)
+       accent     22%   hover fill — must read above popover, since menu items
+                        sit on it
+
+     Saturation also drops from 84% to ~22%: the old value was a strongly
+     blue-tinted near-black that clashed with satellite imagery in the map view.
+     Every foreground/surface pair here clears WCAG AA 4.5:1 (lowest is
+     muted-foreground on accent at 4.82:1). */
+  .dark {
+    --background: 222 24% 9%;
+    --foreground: 210 40% 98%;
+    --card: 222 22% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 21% 15%;
+    --popover-foreground: 210 40% 98%;
+    /* GEIDA: a lighter teal so the brand colour reads on dark surfaces. */
+    --primary: 189 48% 52%;
+    --primary-foreground: 192 73% 10%;
+    --secondary: 220 18% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 220 18% 20%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 220 18% 22%;
+    --accent-foreground: 210 40% 98%;
+    /* Destructive is also the app-wide error-text and invalid-control colour.
+       Keep it light enough to clear WCAG AA on every dark surface, including
+       accent (4.70:1). Its foreground is correspondingly dark so destructive
+       buttons retain strong contrast (6.78:1). */
+    --destructive: 0 84.2% 72%;
+    --destructive-foreground: 222.2 47.4% 11.2%;
+    --border: 220 14% 26%;
+    --input: 220 12% 38%;
+    /* Tailwind's built-in shadow scale bakes in a 10%-black colour, which is
+       all but invisible against these surfaces — so before this, every one of
+       the app's ~65 shadow utilities did nothing in dark mode and elevation was
+       carried entirely by the surface ladder above. Pure black at a much higher
+       alpha is what actually reads on a dark UI. */
+    --elev-penumbra: hsl(0 0% 0% / 0.4);
+    --elev-umbra: hsl(0 0% 0% / 0.55);
+
+    /* Matches --primary, so the focus ring stays visible against the lifted
+       surfaces (4.98:1 on --background, 4.64:1 on --card). The violet, rose and
+       amber schemes below already pair ring with primary this way; emerald was
+       the one exception and is brought into line there, since the lifted
+       surfaces left its darker ring almost no headroom. */
+    --ring: 39 50% 57%;
+  }
+
+  /* Accent color schemes. Each scheme overrides only the accent-bearing tokens
+     (primary / its foreground / focus ring); the neutral base inherited from
+     :root and .dark is left untouched. Selected via a `data-theme` attribute on
+     <html> (see apps/.../lib/theme-schemes.ts). The default "blue" scheme needs
+     no block here because it equals the base :root / .dark values above. */
+  [data-theme="violet"] {
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 20% 98%;
+    --ring: 262.1 83.3% 57.8%;
+  }
+  [data-theme="violet"].dark {
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 20% 98%;
+    --ring: 263.4 70% 50.4%;
+  }
+
+  [data-theme="emerald"] {
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --ring: 142.1 76.2% 36.3%;
+  }
+  /* Unlike violet/rose/amber, emerald's dark ring used to sit well below its
+     primary (142.4 71.8% 29.2%). Against the old near-black canvas that still
+     cleared the 3:1 focus-indicator floor at 3.98:1, but the lifted surfaces in
+     .dark drop it to 3.65:1 on --background and 3.13:1 on --popover — passing
+     by ~4%, so any later surface tweak would break it. Pairing ring with
+     primary restores the headroom (8.04:1 on --background) and makes the
+     ring == primary invariant hold across every scheme. */
+  [data-theme="emerald"].dark {
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --ring: 142.1 70.6% 45.3%;
+  }
+
+  [data-theme="rose"] {
+    --primary: 346.8 77.2% 49.8%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --ring: 346.8 77.2% 49.8%;
+  }
+  /* Rose intentionally shares one mid-lightness accent across light and dark
+     (matching the upstream shadcn rose palette); 49.8% L reads on both, so
+     unlike the other schemes the dark block is deliberately not adjusted. */
+  [data-theme="rose"].dark {
+    --primary: 346.8 77.2% 49.8%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --ring: 346.8 77.2% 49.8%;
+  }
+
+  /* Amber's primary is a mid-brightness orange, so foreground text uses a dark
+     brown (not near-white) to meet contrast on the primary surface in both
+     modes — consistent with the contrast-maximizing pick in foregroundForHex. */
+  [data-theme="amber"] {
+    --primary: 24.6 95% 53.1%;
+    --primary-foreground: 26 83.3% 14.1%;
+    --ring: 24.6 95% 53.1%;
+  }
+  [data-theme="amber"].dark {
+    --primary: 20.5 90.2% 48.2%;
+    --primary-foreground: 26 83.3% 14.1%;
+    --ring: 20.5 90.2% 48.2%;
+  }
+}

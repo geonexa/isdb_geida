@@ -1,0 +1,25 @@
+/* Basemap picker: thumbnail button + grid of basemaps. Used by the Geo-Portal
+   (static markup driven by its engine) and by shared/components/BasemapPicker. */
+.bmp { position: relative; }
+.bmp-btn {
+  display: flex; align-items: center; gap: 10px; height: 40px; padding: 3px 14px 3px 3px; background: var(--paper);
+  border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(18,17,20,.12); cursor: pointer; text-align: left;
+  font: inherit; color: var(--ink);
+}
+.bmp-btn:hover, .bmp-btn[aria-expanded="true"] { border-color: var(--ink); }
+.bmp-btn img { width: 32px; height: 32px; object-fit: cover; background: var(--sand); }
+.bmp-btn span { line-height: 1.1; }
+.bmp-btn small { display: block; font-size: .7rem; color: var(--ink-muted); }
+.bmp-btn strong { font-size: .88rem; }
+.bmp-menu {
+  position: absolute; top: calc(100% + 8px); left: 0; display: none; grid-template-columns: repeat(3, 76px); gap: 8px; padding: 10px;
+  background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow-pop);
+}
+.bmp-menu.is-open { display: grid; }
+.bmp-up .bmp-menu { top: auto; bottom: calc(100% + 8px); }
+.bmp-opt { display: grid; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; color: var(--ink-2); text-align: center; }
+.bmp-opt img { width: 76px; height: 60px; object-fit: cover; border: 2px solid transparent; background: var(--sand); }
+.bmp-opt:hover img { border-color: var(--line); }
+.bmp-opt.is-on { color: var(--ink); }
+.bmp-opt.is-on img { border-color: var(--green); }
+.bmp-opt:focus-visible img, .bmp-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

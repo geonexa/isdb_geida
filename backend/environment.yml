@@ -1,0 +1,28 @@
+# GEIDA backend environment: every geospatial library from conda-forge, one build.
+#   conda env create -f environment.yml        (first time)
+#   conda env update -f environment.yml --prune (after changes)
+#   conda activate geida
+#
+# GDAL, PROJ, GEOS, SpatiaLite and rasterio must come from the same channel:
+# mixing in pip wheels, the "defaults" channel or Homebrew loads two PROJ
+# versions and coordinate lookups fail ("proj.db contains
+# DATABASE.LAYOUT.VERSION.MINOR = ..."). Don't `pip install` rasterio, GDAL,
+# pyproj, fiona or shapely into this env.
+name: geida
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - pip
+  - gdal
+  - libgdal
+  - geos
+  - proj>=9.6
+  - libspatialite
+  - rasterio
+  - shapely>=2
+  - numpy
+  - scipy
+  - pip:
+      - -r requirements.txt
