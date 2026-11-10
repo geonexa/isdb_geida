@@ -39,7 +39,7 @@ flowchart LR
 | `deploy/scripts/deploy.sh` | Release script: pull, update dependencies, migrate, seed, build, restart |
 
 The files assume user **`ecduser`**, the repository at
-**`/home/ecduser/geida_platform_react`** and conda at **`/home/ecduser/miniconda3`**.
+**`/home/ecduser/isdb_geida`** and conda at **`/home/ecduser/miniconda3`**.
 Adjust them before copying them onto a different server.
 
 ## Pages in this section

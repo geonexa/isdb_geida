@@ -12,6 +12,11 @@ How to add an entry: [Maintaining the documentation](development/documentation.m
 Changes merged but not yet deployed go here, then move under a dated heading at release.
 
 ### Changed
+- Deployment: the server copy lives at `/home/ecduser/isdb_geida` (was `geida_platform_react`
+  in the docs and unit files). geida.terrawatch.net moves from the old template app
+  (`isdb-geida`, `runserver` on :8011 in a screen) to this stack: Apache serves the React
+  build, Gunicorn (`geida-api`, 127.0.0.1:8012) and Celery (`geida-worker`) run under systemd.
+  On terrawatch the Apache site file is `geida-platform.conf`.
 - Project workspace: the project bar above the map (code, status, title, actions) moved
   into the top of the side panel, so the map uses the full height of the page.
 - The footer shows the GEIDA logo in place of the "GEIDA" text.

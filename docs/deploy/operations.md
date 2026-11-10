@@ -45,7 +45,7 @@ pg_dump -Fc -U geida -h localhost geida > geida-$(date +%F).dump
 pg_restore -U geida -h localhost -d geida --clean geida-2026-11-09.dump
 
 # Media
-tar czf geida-media-$(date +%F).tar.gz -C ~/geida_platform_react/backend media
+tar czf geida-media-$(date +%F).tar.gz -C ~/isdb_geida/backend media
 ```
 
 ## Routine tasks

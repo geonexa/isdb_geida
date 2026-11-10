@@ -15,8 +15,8 @@ flowchart LR
 ## 1. Get the code
 
 ```bash
-git clone <repository-url> geida_platform_react
-cd geida_platform_react
+git clone <repository-url> isdb_geida
+cd isdb_geida
 ```
 
 ## 2. Create the Python environment

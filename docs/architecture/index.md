@@ -72,7 +72,7 @@ erDiagram
 ## Repository layout
 
 ```
-geida_platform_react/
+isdb_geida/
 ├── backend/        Django API, analysis modules, seed data        → Backend
 ├── frontend/       React app and the vendored GeoLibre workspace   → Frontend
 ├── docs/           this documentation (MkDocs), specs, decision log

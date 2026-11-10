@@ -23,8 +23,12 @@ data; Redis queues the runs.
 | `scripts/deploy.sh` | Pull, migrate, seed, build, restart — run for every release |
 
 The unit files assume user `ecduser`, the repo at
-`/home/ecduser/geida_platform_react` and conda at `/home/ecduser/miniconda3`.
-Adjust them to the server before copying.
+`/home/ecduser/isdb_geida` and conda at `/home/ecduser/miniconda3`
+(the terrawatch server's layout). Adjust them to another server before copying.
+On terrawatch the Apache site is `geida-platform.conf` (already enabled), so copy
+`apache/geida.conf` over `/etc/apache2/sites-available/geida-platform.conf`.
+The older template-based app in `/home/ecduser/isdb-geida` (runserver on :8011)
+is retired by this setup.
 
 ## First-time setup (new server)
 
@@ -39,7 +43,7 @@ sudo -u postgres createdb geida -O geida
 sudo -u postgres psql -d geida -c "CREATE EXTENSION postgis;"
 
 # 3. Code and environment
-git clone <repo-url> ~/geida_platform_react && cd ~/geida_platform_react
+git clone <repo-url> ~/isdb_geida && cd ~/isdb_geida
 conda env create -f backend/environment.yml && conda activate geida
 cp backend/.env.example backend/.env       # DJANGO_ENV=production, secret key, POSTGRES_*
 #   copy the GADM files into backend/data/boundaries/ (see backend/data/README.md)
@@ -65,7 +69,7 @@ sudo systemctl reload apache2
 ## Every release
 
 ```bash
-cd ~/geida_platform_react
+cd ~/isdb_geida
 ./deploy/scripts/deploy.sh             # or --backend to skip the frontend build
 ```
 

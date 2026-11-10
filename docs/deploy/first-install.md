@@ -39,8 +39,8 @@ sudo -u postgres psql -d geida -c "CREATE EXTENSION postgis;"
 
 ```bash
 cd ~
-git clone <repository-url> geida_platform_react
-cd geida_platform_react
+git clone <repository-url> isdb_geida
+cd isdb_geida
 conda env create -f backend/environment.yml
 conda activate geida
 ```
@@ -71,7 +71,7 @@ extracts download on first use; on a server without internet, copy them into
 ## 6. Schema, reference data, static files
 
 ```bash
-cd ~/geida_platform_react/backend
+cd ~/isdb_geida/backend
 python manage.py check --deploy
 python manage.py migrate
 python manage.py seed --boundaries         # CRI library, modules, administrative units (slow)
@@ -82,7 +82,7 @@ python manage.py collectstatic --noinput
 ## 7. Frontend build
 
 ```bash
-cd ~/geida_platform_react/frontend
+cd ~/isdb_geida/frontend
 npm ci
 npm run build                               # -> frontend/dist (needs ~6 GB RAM)
 ```
@@ -90,7 +90,7 @@ npm run build                               # -> frontend/dist (needs ~6 GB RAM)
 ## 8. Services
 
 ```bash
-cd ~/geida_platform_react
+cd ~/isdb_geida
 # Review User=, WorkingDirectory= and the conda path in both files first.
 sudo cp deploy/systemd/geida-api.service deploy/systemd/geida-worker.service /etc/systemd/system/
 sudo systemctl daemon-reload

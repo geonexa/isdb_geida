@@ -20,7 +20,7 @@ On a development machine:
 On the server, as the application user:
 
 ```bash
-cd ~/geida_platform_react
+cd ~/isdb_geida
 ./deploy/scripts/deploy.sh               # backend and frontend
 ./deploy/scripts/deploy.sh --backend     # backend only (skips the frontend build)
 ```
@@ -58,7 +58,7 @@ pages the release touched.
 ## Rolling back
 
 ```bash
-cd ~/geida_platform_react
+cd ~/isdb_geida
 git log --oneline -5                      # find the previous release
 git checkout <previous-commit>
 ./deploy/scripts/deploy.sh                # rebuild and restart on the old code

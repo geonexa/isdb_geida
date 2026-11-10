@@ -79,7 +79,7 @@ concept note (PCN) to post-evaluation (PPER).</p>
 | **Frontend** | React 19, TypeScript, Vite 8, MapLibre GL, GeoLibre GIS workspace |
 | **Raster data** | Cloud-optimised GeoTIFFs, drawn and cut by TiTiler |
 | **Vector data** | OpenStreetMap (Geofabrik extracts), GADM administrative boundaries |
-| **Source code** | `geida_platform_react` repository: `backend/`, `frontend/`, `docs/`, `deploy/` |
+| **Source code** | `isdb_geida` repository: `backend/`, `frontend/`, `docs/`, `deploy/` |
 
 !!! tip "New to the project?"
     Read [Introduction](introduction/index.md) and [Architecture](architecture/index.md) first,
