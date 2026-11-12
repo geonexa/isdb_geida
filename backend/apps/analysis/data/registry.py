@@ -1,7 +1,7 @@
 import math
 
 from . import osm
-from .base import Dataset, DatasetUnavailable
+from .base import Dataset, DatasetUnavailable, cache_lock, part_path
 
 
 class RasterTiles(Dataset):
@@ -22,6 +22,10 @@ class RasterTiles(Dataset):
 
     def fetch(self, bbox, iso3, log=print):
         out = self.cache_path(bbox, iso3, ".tif")
+        with cache_lock(out):
+            return self._fetch(bbox, iso3, out, log)
+
+    def _fetch(self, bbox, iso3, out, log):
         from .cog import readable_tif
         if out.exists() and readable_tif(out):
             return str(out)
@@ -35,9 +39,12 @@ class RasterTiles(Dataset):
         arr, transform, nodata, factor = res
         if factor > 1:
             log(f"{self.title}: area is large, read at {factor:.1f}x coarser resolution")
-        part = out.with_name(out.stem + ".part.tif")
-        raster.write_tif(part, arr, transform, nodata)
-        part.replace(out)
+        part = part_path(out)
+        try:
+            raster.write_tif(part, arr, transform, nodata)
+            part.replace(out)
+        finally:
+            part.unlink(missing_ok=True)
         return str(out)
 
 

@@ -19,6 +19,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 
+from ..base import cache_lock, part_path
 from .pbf_header import snapshot_time
 
 INDEX_URL = "https://download.geofabrik.de/index-v1.json"
@@ -51,7 +52,7 @@ def load_index(refresh=False):
             with _get(INDEX_URL) as r:
                 data = r.read()
             json.loads(data)
-            tmp = path.with_suffix(".part")
+            tmp = part_path(path)
             tmp.write_bytes(data)
             tmp.replace(path)
         except Exception as exc:  # offline: an old index still works
@@ -97,10 +98,20 @@ def extract_path(region):
 
 
 def ensure_extract(region, log=print, refresh=False):
-    """Local path of the region's .osm.pbf, downloading it the first time (or on refresh)."""
+    """Local path of the region's .osm.pbf, downloading it the first time (or on refresh).
+    Runs needing the same country at once share one download: the others wait on the lock."""
     path = extract_path(region)
     if path.exists() and not refresh:
         return path
+    mtime = path.stat().st_mtime if path.exists() else None
+    with cache_lock(path):
+        if path.exists() and path.stat().st_mtime != mtime:  # another run downloaded it while we waited
+            return path
+        return _download_extract(region, path, log)
+
+
+def _download_extract(region, path, log):
+    tmp = part_path(path)
     try:
         with _get(region["url"], timeout=120) as r:
             total = int(r.headers.get("Content-Length") or 0)
@@ -109,7 +120,6 @@ def ensure_extract(region, log=print, refresh=False):
                     f"The {region['name']} extract is {total / 1024 ** 3:.0f} GB; too large to download.")
             log(f"OpenStreetMap: downloading the {region['name']} extract from Geofabrik"
                 + (f" ({total / 1024 ** 2:,.0f} MB)" if total else ""))
-            tmp = path.with_suffix(".part")
             done, step, next_report = 0, 1024 * 1024, 0.25
             with open(tmp, "wb") as out:
                 while chunk := r.read(step):
@@ -123,6 +133,8 @@ def ensure_extract(region, log=print, refresh=False):
         raise
     except Exception as exc:
         raise GeofabrikUnavailable(f"Downloading the {region['name']} extract failed: {exc}") from exc
+    finally:
+        tmp.unlink(missing_ok=True)
     return path
 
 

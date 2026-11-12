@@ -1,6 +1,10 @@
+import contextlib
+import fcntl
 import hashlib
 import json
+import os
 import re
+import uuid
 from pathlib import Path
 
 from django.conf import settings
@@ -8,6 +12,28 @@ from django.conf import settings
 
 class DatasetUnavailable(Exception):
     pass
+
+
+def part_path(out, suffix=None):
+    """A temporary name next to `out`, unique to this call: a file is written there whole, then renamed
+    onto `out`. Two runs fetching the same clip at once (the worker runs several) never write one file."""
+    out = Path(out)
+    suffix = out.suffix if suffix is None else suffix
+    return out.with_name(f"{out.name}.{os.getpid()}-{uuid.uuid4().hex[:8]}.part{suffix}")
+
+
+@contextlib.contextmanager
+def cache_lock(out):
+    """Hold an exclusive lock on `out` while it is produced, across processes: a second run asking for
+    the same clip waits, then finds it in the cache instead of fetching it again."""
+    lock = Path(f"{out}.lock")
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock, "a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
 
 
 class Dataset:

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from django.core.cache import cache
 
-from .base import Dataset, DatasetUnavailable
+from .base import Dataset, DatasetUnavailable, part_path
 from .cog import GDAL_REMOTE, CatalogRaster
 
 # Esri / Impact Observatory annual LULC (v02): class code -> (label, colour)
@@ -146,7 +146,7 @@ class FTWFields(Dataset):
         for zone in utm_zones(bbox):
             url, layer = FTW.format(year=self.year, zone=zone), f"utm{zone:02d}"
             log(f"{self.title}: reading UTM zone {zone} by bounding box")
-            tmp = Path(str(out) + f".z{zone}.geojson")
+            tmp = part_path(out, f".z{zone}.geojson")
             try:
                 with gdal.config_options({**GDAL_REMOTE, "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".parquet"}):
                     gdal.VectorTranslate(str(tmp), f"/vsicurl/{url}", format="GeoJSON", spatFilter=list(bbox),
@@ -158,7 +158,7 @@ class FTWFields(Dataset):
                 raise DatasetUnavailable(f"{self.title}: couldn't read zone {zone} ({exc})") from None
             features += json.loads(tmp.read_text()).get("features", [])
             tmp.unlink(missing_ok=True)
-        part = out.with_name(out.name + ".part")
+        part = part_path(out)
         part.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
         part.replace(out)
         return str(out)

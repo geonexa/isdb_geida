@@ -10,6 +10,7 @@ Compiled modules are cached by wasmtime, so later runs start in a fraction of a 
 """
 import json
 import logging
+import os
 import shutil
 import threading
 import urllib.request
@@ -47,7 +48,7 @@ def wasm_path():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
     local = Path(settings.BASE_DIR).parent / "frontend" / "node_modules" / "geolibre-wasm" / "geolibre-cli.wasm"
-    tmp = dest.with_suffix(".part")
+    tmp = dest.with_name(f"{dest.name}.{os.getpid()}-{threading.get_ident()}.part")  # unique: two workers may fetch it at once
     if local.exists():
         shutil.copyfile(local, tmp)
     else:

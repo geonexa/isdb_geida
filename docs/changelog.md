@@ -181,6 +181,10 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   *2D map* (country, region or around the main map).
 
 ### Fixed
+- Two runs needing the same dataset clip at once (e.g. a double-clicked Run; the worker runs several jobs)
+  wrote the same temporary file and failed with "ZIPDecode: Decoding error". Temporary files are now unique
+  per run, and a lock makes the second run wait and reuse the first one's clip (DEM and catalogue clips,
+  Copernicus DEM / WorldCover tiles, Geofabrik extracts, people and land downloads, Toolbox engine).
 - Catchment from a point (0.2.0): a point clicked beside a stream gave a tiny catchment without explanation
   (e.g. 0.3 km² for a slope 1.2 km from a 313 km² river). New **Snap to** setting: the nearest stream (as before)
   or the largest stream within the snapping distance (now up to 5 km). When the outlet drains under 1 km², the

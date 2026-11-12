@@ -18,7 +18,7 @@ instead when present: offline work and tests. Areas above MAX_PIXELS are read co
 Clips are cached in DATA_DIR/<id>/ per area, period and code version.
 """
 from pathlib import Path
-from .base import Dataset, DatasetUnavailable
+from .base import Dataset, DatasetUnavailable, cache_lock, part_path
 
 
 def _bbox_polygon(bbox):
@@ -73,8 +73,12 @@ class CatalogRaster(Dataset):
         area's UTM zone at the layer's native resolution, and the period read.
         """
         year = self.pick_period(year)
+        out = self.cache_path(geom.extent, iso3, f"_{year or 'static'}.tif")
+        with cache_lock(out):
+            return self._clip(geom, iso3, year, out, log)
+
+    def _clip(self, geom, iso3, year, out, log):
         w, s, e, n = geom.extent
-        out = self.cache_path((w, s, e, n), iso3, f"_{year or 'static'}.tif")
         if out.exists():
             if readable_tif(out):
                 return str(out), year
@@ -82,7 +86,7 @@ class CatalogRaster(Dataset):
             out.unlink(missing_ok=True)
         label = f"{self.title}{f' {year}' if year else ''}"
         local = self.local_files(iso3, year)
-        part = out.with_name(out.stem + ".part.tif")   # written whole, then renamed: never a half file in the cache
+        part = part_path(out)   # written whole, then renamed: never a half file in the cache
         if local:
             log(f"{label}: reading the local file")
             files = [str(p) for p in local]

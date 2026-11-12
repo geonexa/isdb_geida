@@ -26,7 +26,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from .base import DatasetUnavailable
+from .base import DatasetUnavailable, part_path
 from .cog import CatalogRaster
 
 GHSL_URL = "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL"
@@ -71,7 +71,7 @@ def ghsl_tiles(bbox):
 
 def _download(url, dest, log):
     dest.parent.mkdir(parents=True, exist_ok=True)
-    tmp = dest.with_suffix(dest.suffix + ".part")
+    tmp = part_path(dest)  # unique per call: two runs may download the same tile at once
     req = urllib.request.Request(url, headers={"User-Agent": "GEIDA"})
     try:
         with urllib.request.urlopen(req, timeout=300) as resp, open(tmp, "wb") as fh:  # noqa: S310 (fixed public server)
@@ -244,7 +244,7 @@ class WorldPop(CatalogRaster):
                 if "too large" not in str(exc).lower() and "raster_too_large" not in str(exc):
                     raise
                 data, _ = worldpop_post("/raster", {**body, "resolution": "1km"}, raw=True)  # very large areas: 1 km cells
-            part = dest.with_name(dest.stem + ".part.tif")
+            part = part_path(dest)
             part.write_bytes(data)
             part.replace(dest)
         return [str(dest)]
