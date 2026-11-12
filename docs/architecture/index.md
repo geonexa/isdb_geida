@@ -13,7 +13,7 @@ IsDB's servers.
 | **Web app** | React 19, TypeScript, Vite 8, MapLibre GL, OpenLayers (Data Catalog), GeoLibre (Analytics) | Every screen the user sees |
 | **API** | Django 6 with GeoDjango, served by Gunicorn | Accounts, projects, CRIs, boundaries, data catalog, analysis orchestration |
 | **Worker** | Celery 5 with a Redis broker | Runs analysis modules in the background |
-| **Database** | PostgreSQL + PostGIS (production), SQLite + SpatiaLite (development) | Projects, geometries, administrative units, runs, evidence |
+| **Database** | PostgreSQL + PostGIS (development and production) | Projects, geometries, administrative units, runs, evidence |
 | **Analysis modules** | Python: GDAL, rasterio, shapely 2, NumPy | One folder per analysis; a manifest declares inputs, CRIs and outputs |
 | **Raster service** | TiTiler (external, `TITILER_URL`) | Draws map tiles from cloud-optimised GeoTIFFs and cuts GeoTIFF downloads |
 | **Web server** | Apache 2 | HTTPS, serves the built web app, proxies `/api` and `/admin` to Gunicorn |
@@ -28,7 +28,7 @@ flowchart LR
     G --> DB[(PostgreSQL<br/>+ PostGIS)]
     G -->|queue a run| R[(Redis)]
     R --> W[Celery worker]
-    W -->|modules/&lt;id&gt;/run.py| M[Analysis]
+    W -->|analyses/&lt;category&gt;/&lt;id&gt;/run.py| M[Analysis]
     M --> C[data/cache<br/>downloads]
     M --> O[media/runs<br/>outputs]
     W --> DB
@@ -88,7 +88,7 @@ isdb_geida/
 | | Development | Production |
 |---|---|---|
 | Settings module | `config/settings/development.py` | `config/settings/production.py` |
-| Database | SQLite + SpatiaLite (`backend/db.sqlite3`) | PostgreSQL + PostGIS |
+| Database | PostgreSQL + PostGIS (local, database `geida`) | PostgreSQL + PostGIS |
 | Web | Vite dev server :5173, proxy to Django :8000 | Apache + Gunicorn :8012 |
 | Worker | `manage.py run_worker` (reloads on code change) or inline (eager) mode | `geida-worker` systemd service |
 | Email | Printed in the Django console | SMTP |

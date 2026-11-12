@@ -1,0 +1,53 @@
+id: vegetation_indices
+version: 0.1.0
+title: Vegetation indices (NDVI, EVI, SAVI, NDMI)
+question: How green and healthy is the vegetation in a chosen period?
+description: >
+  Builds a cloud-free Sentinel-2 composite (median of the clear observations) for a chosen year
+  and season and computes a vegetation index over the area of influence: NDVI (greenness), EVI
+  (greenness, less saturated in dense canopy), SAVI (sparse vegetation on bright soils) or NDMI
+  (canopy moisture). Reports the mean, the area in each vegetation class, the same per
+  administrative unit and per land cover class, and maps the index.
+status: experimental
+category: land
+themes: [agriculture, environment, water]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  optional:
+    - {name: landcover, type: raster, default: landcover, label: Land cover (ESA WorldCover 2021) for the per-class table}
+parameters:
+  - {name: index, type: choice, default: ndvi, label: Index,
+     choices: [{value: ndvi, label: NDVI (greenness)}, {value: evi, label: EVI (dense canopy)},
+               {value: savi, label: SAVI (sparse vegetation)}, {value: ndmi, label: NDMI (moisture)}]}
+  - {name: year, type: number, default: 2025, min: 2017, max: 2026, label: Year}
+  - {name: season, type: choice, default: year, label: Period,
+     choices: [{value: year, label: Whole year}, {value: jan_mar, label: January–March}, {value: apr_jun, label: April–June},
+               {value: jul_sep, label: July–September}, {value: oct_dec, label: October–December},
+               {value: jan_jun, label: January–June}, {value: jul_dec, label: July–December}]}
+  - {name: max_cloud, type: number, default: 40, min: 5, max: 90, label: Skip scenes cloudier than (%)}
+  - {name: scenes_per_tile, type: number, default: 8, min: 1, max: 20, label: Scenes used per tile (least cloudy)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: mean_index}
+  - {type: metric, name: high_share}
+  - {type: metric, name: scenes}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: table, name: by_landcover, optional: true}
+  - {type: table, name: scene_list}
+  - {type: raster, name: index}
+  - {type: raster, name: observations}
+requires: [gdal]
+limits: {max_area_km2: 20000}
+queue: heavy
+runtime: one to five minutes (10 m up to about 1,500 km², coarser above)
+citations: ["Copernicus Sentinel-2 L2A (ESA), collection 1, via Earth Search (Element 84) on AWS Open Data",
+            "ESA WorldCover 10 m 2021 v200 (Zanaga et al. 2022), CC BY 4.0"]
+steps:
+  - search: Sentinel-2 L2A scenes over the area in the period below the cloud limit; least cloudy per MGRS tile
+  - read: bands warped from the COGs onto the area's UTM grid (10 m, coarser for large areas)
+  - mask: scene classification (cloud, cloud shadow, cirrus, snow, saturated, no data)
+  - index: per scene, then the median of clear observations per pixel
+  - classes: area per index class; mean per admin unit and per land cover class

@@ -12,10 +12,10 @@ from unittest import mock
 
 from django.test import SimpleTestCase, override_settings
 
-from apps.analysis import osm
-from apps.analysis.datasets import get_dataset
-from apps.analysis.osm import extract, geofabrik, overpass, taxonomy
-from apps.analysis.osm.pbf_header import snapshot_time
+from apps.analysis.data import osm
+from apps.analysis.data import get_dataset
+from apps.analysis.data.osm import extract, geofabrik, overpass, taxonomy
+from apps.analysis.data.osm.pbf_header import snapshot_time
 
 TMP = Path(tempfile.mkdtemp(prefix="geida-osm-test-"))
 BBOX = (32.0, 1.0, 32.01, 1.01)

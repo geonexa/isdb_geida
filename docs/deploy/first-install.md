@@ -54,7 +54,7 @@ nano backend/.env
 
 Set at least: `DJANGO_ENV=production`, `DJANGO_SECRET_KEY`, the `POSTGRES_*` values,
 `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `FRONTEND_URL`, the `EMAIL_*`
-values and, if data live on another disk, `DATA_DIR`. See the
+values and, if the data folders live elsewhere, `REFERENCE_DATA_DIR` and `DATA_DIR`. See the
 [production example](../setup/configuration.md#example-production-env).
 
 ```bash
@@ -63,10 +63,10 @@ chmod 600 backend/.env
 
 ## 5. Large datasets
 
-Copy the GADM files into `DATA_DIR/boundaries/` (default
-`backend/data/boundaries/`); see [Reference data](../setup/reference-data.md). OSM
-extracts download on first use; on a server without internet, copy them into
-`DATA_DIR/osm/`.
+Copy the reference data folder `geida_static_data/` (GADM, HydroATLAS, `catalog.json`) next to
+the repository, or set `REFERENCE_DATA_DIR`; see [Reference data](../setup/reference-data.md).
+The runtime cache (`DATA_DIR`, default `.cache/` in the repository) fills itself; OSM
+extracts download on first use, and on a server without internet are copied into `DATA_DIR/osm/`.
 
 ## 6. Schema, reference data, static files
 
@@ -74,7 +74,8 @@ extracts download on first use; on a server without internet, copy them into
 cd ~/isdb_geida/backend
 python manage.py check --deploy
 python manage.py migrate
-python manage.py seed --boundaries         # CRI library, modules, administrative units (slow)
+python manage.py shell -c "from apps.toolbox import engine; engine.manifests()"   # Toolbox engine, fetched once (or set GEOLIBRE_WASM)
+python manage.py seed                      # required datasets: modules, CRI library, admin units (first run slow)
 python manage.py createsuperuser
 python manage.py collectstatic --noinput
 ```

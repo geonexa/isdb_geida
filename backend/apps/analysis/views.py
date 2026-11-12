@@ -11,6 +11,7 @@ Analysis API.
     GET  /api/analysis/evidence/?project=CODE
     POST /api/analysis/evidence/<id>/accept/  |  /reject/
 """
+import logging
 import mimetypes
 
 from django.db import transaction
@@ -22,10 +23,13 @@ from apps.core.api import BadRequest, error, json_body
 from apps.projects.access import can_edit, can_view, is_reviewer
 from apps.projects.models import Project
 
-from .datasets import DATASETS
+from .data import DATASETS
 from .models import PHASE_INSTRUMENT, PHASES, Evidence, Module, ModuleRun
-from .registry import availability, manifest_public, read_categories, sync_modules
+from .core.manifest import parse_point
+from .core.registry import availability, manifest_public, read_categories, read_planned, sync_modules
 from .tasks import enqueue
+
+log = logging.getLogger(__name__)
 
 MAX_ACTIVE_RUNS_PER_PROJECT = 5
 
@@ -37,7 +41,7 @@ def _project(request, code):
     return p
 
 
-def _run_dict(r, detail=False):
+def _run_dict(r, detail=False, user=None):
     d = {
         "id": r.id, "project": r.project.code, "module": r.module_id, "module_title": r.module.title,
         "module_version": r.module_version, "phase": r.phase, "instrument": PHASE_INSTRUMENT[r.phase],
@@ -46,6 +50,7 @@ def _run_dict(r, detail=False):
         "finished": r.finished.isoformat() if r.finished else None,
         "created_by": (r.created_by.get_full_name() or r.created_by.username) if r.created_by else "",
         "summary": r.summary,
+        "can_delete": bool(user and _delete_problem(user, r) is None),
     }
     if detail:
         d.update({"outputs": r.outputs, "datasets": r.datasets, "log": r.log,
@@ -72,14 +77,21 @@ def datasets(request):
 
 @require_GET
 def modules(request):
+    problems = []
     try:
-        manifests = sync_modules()
-    except ValueError as exc:
-        return error(f"Module registry problem: {exc}", status=500)
+        manifests = sync_modules(problems)
+    except ValueError as exc:  # categories.yaml / planned.yaml problems
+        return error(f"Analysis registry problem: {exc}", status=500)
+    for p_ in problems:  # a broken analysis folder is left out; developers see why here and in check_analyses
+        log.error("Analysis left out of the catalogue: %s", p_)
     p = _project(request, request.GET.get("project")) if request.GET.get("project") else None
+    from apps.projects.models import CRI
+    cri_names = {c.code: (c.name, c.unit) for c in CRI.objects.only("code", "name", "unit")}
     out = []
     for m in manifests.values():
         item = manifest_public(m)
+        item["cri"] = [{**c, "name": cri_names.get(c["code"], ("", ""))[0], "unit": cri_names.get(c["code"], ("", ""))[1]}
+                       for c in item.get("cri") or []]
         if p:
             item["availability"] = availability(m, p)
             item["cri_in_project"] = sorted(
@@ -89,8 +101,12 @@ def modules(request):
     counts = {}
     for item in out:
         counts[item["category"]] = counts.get(item["category"], 0) + 1
-    categories = [{**c, "modules": counts.get(c["id"], 0)} for c in read_categories()]
-    return JsonResponse({"modules": out, "categories": categories, "phases": [{"value": k, "label": v, "instrument": PHASE_INSTRUMENT[k]}
+    planned = read_planned(built=set(manifests))
+    pcounts = {}
+    for item in planned:
+        pcounts[item["category"]] = pcounts.get(item["category"], 0) + 1
+    categories = [{**c, "modules": counts.get(c["id"], 0), "planned": pcounts.get(c["id"], 0)} for c in read_categories()]
+    return JsonResponse({"modules": out, "planned": planned, "categories": categories, "phases": [{"value": k, "label": v, "instrument": PHASE_INSTRUMENT[k]}
                                                     for k, v in PHASES]})
 
 
@@ -100,10 +116,10 @@ def runs(request):
         p = _project(request, request.GET.get("project"))
         if p is None:
             return error("Project not found.", status=404)
-        qs = p.runs.select_related("module", "created_by", "project")
+        qs = p.runs.select_related("module", "created_by", "project").prefetch_related("evidence")
         if request.GET.get("phase"):
             qs = qs.filter(phase=request.GET["phase"])
-        return JsonResponse({"runs": [_run_dict(r) for r in qs[:200]]})
+        return JsonResponse({"runs": [_run_dict(r, user=request.user) for r in qs[:200]]})
 
     if not request.user.is_authenticated:
         return error("Sign in to run analyses.", status=401)
@@ -126,7 +142,7 @@ def runs(request):
     av = availability(m, p)
     if av["status"] != "ready":
         return error(av["reasons"][0] if av["reasons"] else "This module can't run for this project.")
-    params, errs = _clean_params(m, data.get("params") or {})
+    params, errs = _clean_params(m, data.get("params") or {}, area=p.area.geom)
     if errs:
         return JsonResponse({"error": next(iter(errs.values())), "errors": errs}, status=400)
     if p.runs.filter(status__in=("queued", "running")).count() >= MAX_ACTIVE_RUNS_PER_PROJECT:
@@ -136,10 +152,24 @@ def runs(request):
                                  params=params, created_by=request.user)
     # Queue after the row is committed, so the worker can always read it.
     transaction.on_commit(lambda: enqueue(r))
-    return JsonResponse({"run": _run_dict(r)}, status=201)
+    return JsonResponse({"run": _run_dict(r, user=request.user)}, status=201)
 
 
-def _clean_params(manifest, raw):
+POINT_MAX_DISTANCE_KM = 10   # a point parameter may sit just outside the area (a dam or bridge downstream)
+
+
+def _km_from_area(lonlat, area):
+    """Distance in km from a point to the area (0 inside), measured in the point's UTM zone."""
+    from django.contrib.gis.geos import Point
+    from apps.core.geo import utm_epsg
+    epsg = utm_epsg(*lonlat)
+    pt, a = Point(*lonlat, srid=4326), area.clone()
+    pt.transform(epsg)
+    a.transform(epsg)
+    return a.distance(pt) / 1000
+
+
+def _clean_params(manifest, raw, area=None):
     out, errs = {}, {}
     for spec in manifest.get("parameters", []) or []:
         name, kind = spec["name"], spec.get("type", "number")
@@ -160,16 +190,93 @@ def _clean_params(manifest, raw):
                 errs[name] = f"Choose a value for {spec.get('label', name)}."
                 continue
             v = match[0]
+        elif kind == "criteria":
+            from .core.manifest import parse_criteria
+            v, problem = parse_criteria(v, spec.get("layers") or [])
+            if problem:
+                errs[name] = problem
+                continue
+        elif kind == "point":
+            label = spec.get("label", name)
+            if v in (None, "", []):
+                errs[name] = f"Pick a point on the map for {label}."
+                continue
+            v = parse_point(v)
+            if v is None:
+                errs[name] = f"{label}: type longitude, latitude in degrees, e.g. 34.25, 2.31."
+                continue
+            if area is not None and _km_from_area(v, area) > POINT_MAX_DISTANCE_KM:
+                errs[name] = f"{label} is more than {POINT_MAX_DISTANCE_KM} km from the area of influence."
+                continue
         out[name] = v
     return out, errs
 
 
-@require_GET
+@require_http_methods(["GET", "DELETE"])
 def run_detail(request, run_id):
     r = ModuleRun.objects.select_related("project", "module", "created_by").filter(pk=run_id).first()
     if r is None or not can_view(request.user, r.project):
         return error("Run not found.", status=404)
-    return JsonResponse({"run": _run_dict(r, detail=True)})
+    if request.method == "DELETE":
+        problem = _delete_problem(request.user, r)
+        if problem:
+            return error(problem, status=403 if "only delete" in problem else 400)
+        return JsonResponse({"deleted": [_delete_run(request.user, r)]})
+    d = _run_dict(r, detail=True, user=request.user)
+    d["size_bytes"] = _folder_bytes(r.workdir)
+    return JsonResponse({"run": d})
+
+
+# Deleting runs ---------------------------------------------------------------------------------------------
+# The person who started a run, or a reviewer, can delete it once it has finished. Runs with accepted evidence
+# stay (that evidence is the project's record): a reviewer rejects the evidence first. Proposed and rejected
+# evidence goes with the run; its files are removed; the project's Activity log records the deletion.
+
+def _delete_problem(user, r):
+    """Why this user can't delete this run, or None."""
+    if not user.is_authenticated or not (r.created_by_id == user.id or is_reviewer(user)):
+        return "You can only delete runs you started (reviewers can delete any)."
+    if r.status in ("queued", "running"):
+        return "This run hasn't finished. Cancel it or wait until it ends, then delete it."
+    accepted = [e.cri_code for e in r.evidence.all() if e.status == "accepted"]
+    if accepted:
+        return (f"Run #{r.pk} has accepted evidence (CRI {', '.join(sorted(set(accepted)))}), which is the project's "
+                "record. Reject that evidence first.")
+    return None
+
+
+def _folder_bytes(folder):
+    if not folder.exists():
+        return 0
+    return sum(f.stat().st_size for f in folder.rglob("*") if f.is_file())
+
+
+def _delete_run(user, r):
+    import shutil
+    from apps.projects.views import log
+    info = {"id": r.pk, "title": r.module.title, "bytes": _folder_bytes(r.workdir)}
+    shutil.rmtree(r.workdir, ignore_errors=True)
+    log(r.project, user, "deleted analysis run", run=r.pk, title=f"#{r.pk} {r.module.title} ({r.get_phase_display()})")
+    r.delete()
+    return info
+
+
+@require_POST
+def runs_delete(request):
+    """Delete several runs: {"ids": [...]} -> {"deleted": [...], "refused": [{id, reason}]}."""
+    try:
+        ids = [int(i) for i in (json_body(request).get("ids") or [])]
+    except (BadRequest, TypeError, ValueError):
+        return error("Send the ids of the runs to delete.")
+    deleted, refused = [], []
+    for r in ModuleRun.objects.select_related("project", "module").filter(pk__in=ids):
+        if not can_view(request.user, r.project):
+            refused.append({"id": r.pk, "reason": "Run not found."})
+        elif problem := _delete_problem(request.user, r):
+            refused.append({"id": r.pk, "reason": problem})
+        else:
+            deleted.append(_delete_run(request.user, r))
+    return JsonResponse({"deleted": deleted, "refused": refused})
 
 
 @require_POST
@@ -189,7 +296,7 @@ def run_file(request, run_id, name):
     r = ModuleRun.objects.select_related("project").filter(pk=run_id).first()
     if r is None or not can_view(request.user, r.project):
         return error("Run not found.", status=404)
-    allowed = {o.get("file") for o in r.outputs if o.get("file")}
+    allowed = {f for o in r.outputs for f in (o.get("file"), o.get("data_file")) if f}  # data_file: raster values
     if name not in allowed:
         return error("File not found.", status=404)
     path = r.workdir / name
@@ -198,6 +305,8 @@ def run_file(request, run_id, name):
     ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
     if name.endswith(".geojson"):
         ctype = "application/geo+json"
+    elif name.endswith(".tif"):
+        ctype = "image/tiff"
     return FileResponse(open(path, "rb"), content_type=ctype, as_attachment=request.GET.get("download") == "1",
                         filename=f"{r.project.code}_{r.module_id}_{name}")
 

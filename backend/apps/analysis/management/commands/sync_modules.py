@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from apps.analysis.registry import sync_modules
+from apps.analysis.core.registry import sync_modules
 
 
 class Command(BaseCommand):

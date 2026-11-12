@@ -15,6 +15,7 @@ import { colorExpr, radiusExpr, widthExpr } from "@/features/projects/vectorStyl
 import { featurePopupHtml } from "@/features/projects/featurePopup";
 import { BasemapPicker } from "@/shared/components/BasemapPicker";
 import { saveBasemapId, savedBasemapId, tileUrls, useBasemaps } from "@/shared/map/basemaps";
+import { SearchControl } from "@/shared/map/SearchControl";
 
 // "pmtiles://<archive url>" sources (vector tiles read with HTTP range requests). Registered once,
 // globally, so the export's offscreen map can read the same sources from getStyle().
@@ -74,7 +75,7 @@ export type MapProps = {
   children?: React.ReactNode;
   /** The MapLibre map once its layers are in place (null on unmount), e.g. for map export. */
   onMap?: (map: maplibregl.Map | null) => void;
-  /** Adds an "Export map" button below the fullscreen button. */
+  /** Adds an "Export map" button below the fullscreen and search buttons. */
   onExport?: () => void;
 };
 
@@ -103,6 +104,7 @@ export function ProjectMap(props: MapProps) {
     });
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     m.addControl(new maplibregl.FullscreenControl(), "top-right");
+    m.addControl(new SearchControl(), "top-right");
     if (handlers.current.onExport) m.addControl(new ExportControl(() => handlers.current.onExport?.()), "top-right");
     m.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
     m.doubleClickZoom.disable();

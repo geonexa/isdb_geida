@@ -1,8 +1,10 @@
 /**
  * Map layout model (QGIS-style print layout): a page and a list of items placed on
- * it in millimetres. Items are drawn in list order (last on top). Saved per project
- * in the browser; layouts can also be saved as named templates and reused.
+ * it in millimetres. Items are drawn in list order (last on top). Saved per project and
+ * user (in the user's account when signed in, otherwise in the browser); layouts can also be
+ * saved as named templates and reused.
  */
+import { api } from "@/shared/api/client";
 
 /* --------------------------------------------------------------- context */
 
@@ -113,8 +115,11 @@ export type OverviewItem = Base & {
   type: "overview";
   /** The map whose extent is outlined. */
   mapId: string;
-  /** country = the project's country; region = its province/region (admin level 1); around = the main map's extent zoomed out;
-   * globe = a vector globe locator centred on the country (no map capture). */
+  /** globe = a vector globe locator centred on the country (no map capture, the default);
+   * map = a 2D map of the area given by `extent`. */
+  style?: "globe" | "map";
+  /** For the 2D map: country = the project's country; region = its province/region (admin level 1);
+   * around = the main map's extent zoomed out. ("globe" here is how older layouts chose the globe.) */
   extent: "country" | "region" | "around" | "globe";
   zoomOut: number;
   boxColor: string;
@@ -123,7 +128,7 @@ export type OverviewItem = Base & {
   outline?: boolean;
   outlineColor?: string;
   outlineWidth?: number;
-  /** Colours of the globe locator (extent "globe"). */
+  /** Colours of the globe locator. */
   globe?: { ocean: string; land: string; border: string; highlight: string; graticule: boolean; marker?: boolean };
 };
 export type TextItem = Base & {
@@ -203,7 +208,7 @@ export function newItem(type: ItemType, x: number, y: number, ctx: { mapId?: str
     case "map":
       return { ...base, type, name: "Map", w: 120, h: 80, extent: "view", center: [0, 0], scale: 50000, grid: { ...DEFAULT_GRID, show: false }, frame: { ...NO_FRAME, stroke: "#1f2937", strokeWidth: 0.3 } };
     case "overview":
-      return { ...base, type, name: "Overview map", w: 50, h: 40, mapId: ctx.mapId ?? "", extent: "globe", zoomOut: 6, boxColor: "#d7263d", boxWidth: 0.6, outline: true, outlineColor: "#0B3B47", outlineWidth: 0.35, frame: { ...NO_FRAME, stroke: "#1f2937", strokeWidth: 0.25 } };
+      return { ...base, type, name: "Overview map", w: 50, h: 40, mapId: ctx.mapId ?? "", style: "globe", extent: "country", zoomOut: 6, boxColor: "#d7263d", boxWidth: 0.6, outline: true, outlineColor: "#0B3B47", outlineWidth: 0.35, frame: { ...NO_FRAME, stroke: "#1f2937", strokeWidth: 0.25 } };
     case "text":
       return { ...base, type, name: "Text", w: 60, h: 10, text: "Text", font: font(10), align: "left", valign: "top", lineHeight: 1.25, halo: false };
     case "legend":
@@ -346,38 +351,111 @@ export function fillVars(text: string, vars: Vars) {
 export const VARIABLES = ["title", "subtitle", "code", "country", "author", "date", "scale", "sources", "crs"];
 
 /* --------------------------------------------------------------- storage */
+/* Signed-in users keep their layouts in the database (apps/projects/map_layouts.py), so they follow them to any
+ * computer or browser: the last layout of each project, saved templates and the export resolution. Anyone not
+ * signed in (or when the server can't be reached) keeps them in this browser, as before. */
 
 const KEY = (code: string) => `geida.layout.v2.${code}`;
 const TPL_KEY = "geida.layout.templates";
-
-export function loadLayout(code: string, ramp: Ramp | null): Layout {
-  try {
-    const raw = localStorage.getItem(KEY(code));
-    if (raw) {
-      const l = JSON.parse(raw) as Layout;
-      if (l.version === 2 && Array.isArray(l.items)) return l;
-    }
-  } catch { /* fall through */ }
-  return defaultLayout(ramp);
-}
-export function saveLayout(code: string, l: Layout) {
-  try { localStorage.setItem(KEY(code), JSON.stringify(l)); } catch { /* storage full or blocked: saving is a convenience */ }
-}
+const DPI_KEY = "geida.layout.dpi";
 
 export type SavedTemplate = { name: string; saved: string; layout: Layout };
-export function listTemplates(): SavedTemplate[] {
+/** What the export dialog opens with, and where it saves (remote = the user's account). */
+export type LayoutStore = { layout: Layout | null; dpi: number; templates: SavedTemplate[]; remote: boolean };
+
+const valid = (l: unknown): l is Layout => !!l && (l as Layout).version === 2 && Array.isArray((l as Layout).items);
+function localLayout(code: string): Layout | null {
+  try { const l = JSON.parse(localStorage.getItem(KEY(code)) ?? "null"); return valid(l) ? l : null; } catch { return null; }
+}
+function localDpi(): number | null {
+  try { return Number(localStorage.getItem(DPI_KEY)) || null; } catch { return null; }
+}
+function localTemplates(): SavedTemplate[] {
   try { return JSON.parse(localStorage.getItem(TPL_KEY) ?? "[]"); } catch { return []; }
 }
-export function storeTemplate(name: string, layout: Layout) {
-  const all = listTemplates().filter((t) => t.name !== name);
+function forget(key: string) {
+  try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+/** The layout to open: the saved one, or the default page. */
+export function layoutOr(saved: Layout | null, ramp: Ramp | null): Layout {
+  return saved ? withOverviewStyle(saved) : defaultLayout(ramp);
+}
+
+/**
+ * Open the user's layouts: from their account when signed in, moving anything this browser kept before into it
+ * (once; the browser copy is then removed). Falls back to this browser if the server can't be reached.
+ */
+export async function openStore(code: string, signedIn: boolean): Promise<LayoutStore> {
+  const local: LayoutStore = { layout: localLayout(code), dpi: localDpi() ?? 300, templates: localTemplates(), remote: false };
+  if (!signedIn) return local;
+  try {
+    const r = await api<{ layout: Layout | null; dpi: number; templates: SavedTemplate[]; stored: { layout: boolean; settings: boolean } }>(
+      `/api/projects/${code}/map-layout/`);
+    let { layout, dpi, templates } = r;
+    if (!r.stored.layout && local.layout) {
+      await api(`/api/projects/${code}/map-layout/`, { method: "PUT", body: { layout: local.layout } });
+      layout = local.layout;
+    }
+    if (local.layout) forget(KEY(code));
+    const oldDpi = localDpi();
+    if (!r.stored.settings && oldDpi) {
+      await api(`/api/projects/${code}/map-layout/`, { method: "PUT", body: { dpi: oldDpi } }).catch(() => undefined);
+      dpi = oldDpi;
+    }
+    if (oldDpi) forget(DPI_KEY);
+    const names = new Set(templates.map((t) => t.name));
+    const add = local.templates.filter((t) => !names.has(t.name) && valid(t.layout));
+    if (add.length) templates = (await api<{ templates: SavedTemplate[] }>("/api/projects/map-templates/", { method: "POST", body: { templates: add } })).templates;
+    if (local.templates.length) forget(TPL_KEY);
+    return { layout: valid(layout) ? layout : null, dpi, templates, remote: true };
+  } catch {
+    return local;
+  }
+}
+
+/** Keep the project's current layout (account or browser). */
+export async function saveLayout(store: LayoutStore, code: string, l: Layout) {
+  if (store.remote) return void await api(`/api/projects/${code}/map-layout/`, { method: "PUT", body: { layout: l } });
+  try { localStorage.setItem(KEY(code), JSON.stringify(l)); } catch { /* storage full or blocked: saving is a convenience */ }
+}
+export async function saveDpi(store: LayoutStore, code: string, dpi: number) {
+  if (store.remote) return void await api(`/api/projects/${code}/map-layout/`, { method: "PUT", body: { dpi } });
+  try { localStorage.setItem(DPI_KEY, String(dpi)); } catch { /* ignore */ }
+}
+/** Save the layout as a named template; returns the user's templates, newest first. */
+export async function storeTemplate(store: LayoutStore, name: string, layout: Layout): Promise<SavedTemplate[]> {
+  if (store.remote) return (await api<{ templates: SavedTemplate[] }>("/api/projects/map-templates/", { method: "POST", body: { name, layout } })).templates;
+  const all = localTemplates().filter((t) => t.name !== name);
   all.unshift({ name, saved: new Date().toISOString(), layout });
   try { localStorage.setItem(TPL_KEY, JSON.stringify(all.slice(0, 20))); } catch { throw new Error("The browser's storage is full; remove a template or a large picture."); }
+  return all.slice(0, 20);
 }
-export function deleteTemplate(name: string) {
-  try { localStorage.setItem(TPL_KEY, JSON.stringify(listTemplates().filter((t) => t.name !== name))); } catch { /* ignore */ }
+export async function deleteTemplate(store: LayoutStore, name: string): Promise<SavedTemplate[]> {
+  if (store.remote) return (await api<{ templates: SavedTemplate[] }>("/api/projects/map-templates/", { method: "DELETE", body: { name } })).templates;
+  const rest = localTemplates().filter((t) => t.name !== name);
+  try { localStorage.setItem(TPL_KEY, JSON.stringify(rest)); } catch { /* ignore */ }
+  return rest;
 }
+/** Overview locators default to the globe: layouts saved before the 2D / globe choice get it
+ * (their old 2D extent is kept, ready if the user switches back to the 2D map). */
+export function withOverviewStyle(l: Layout): Layout {
+  if (!l.items.some((it) => it.type === "overview" && !(it as OverviewItem).style)) return l;
+  return {
+    ...l,
+    items: l.items.map((it) => {
+      if (it.type !== "overview" || (it as OverviewItem).style) return it;
+      const o = it as OverviewItem;
+      return { ...o, style: "globe", extent: o.extent === "globe" ? "country" : o.extent } as Item;
+    }),
+  };
+}
+/** The overview draws as a globe (also for layouts that chose it with extent "globe"). */
+export const isGlobe = (it: OverviewItem) => (it.style ?? (it.extent === "globe" ? "globe" : "map")) === "globe";
+
 /** A saved template with fresh item ids (so two copies never share ids). */
 export function instantiate(t: Layout): Layout {
+  t = withOverviewStyle(t);
   const ids = new Map(t.items.map((it) => [it.id, uid(it.type)]));
   return {
     ...t,

@@ -48,7 +48,6 @@ export default function Home() {
             <p className="hero-tagline">Earth observation for every stage of an IsDB project</p>
             <div className="hero-actions">
               <Link className="btn btn-light" to="/projects">Explore projects</Link>
-              <a className="btn btn-ghost" href="#project-cycle">See the project lifecycle</a>
             </div>
           </div>
         </div>

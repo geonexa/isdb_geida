@@ -29,6 +29,7 @@ frontend/src/
 │   ├── site/              home page, content sections, 404
 │   ├── projects/          list, wizard, import, workspace, ProjectMap
 │   ├── geoportal/         Data Catalog (OpenLayers engine)
+│   ├── toolbox/           project Toolbox tab: tools, saved results, files (runs on the server, apps/toolbox)
 │   ├── gis/               mounts the GeoLibre workspace at /analytics
 │   └── print/             map layout editor and export
 └── shared/                code used by two or more features
@@ -74,7 +75,7 @@ to `shared/`; imports across features use the `@/` alias (`@/shared/api/client`)
 - **One basemap list.** Every map reads the basemaps from the backend catalogue
   (`GET /api/geoportal/basemaps/`) through `useBasemaps()` and shows the same
   `<BasemapPicker>`. The choice is remembered in the browser (`geida.basemap`). Add a
-  basemap in `backend/apps/geoportal/catalog.py` and every map gets it.
+  basemap in `backend/apps/analysis/data/catalog.py` and every map gets it.
 - **Project map** (`features/projects/ProjectMap.tsx`): MapLibre map with the area of
   influence, run outputs (images and vectors), data-catalog tile layers and the map
   export button.
@@ -92,8 +93,8 @@ source is vendored in `frontend/gis/` and built together with GEIDA:
 - A PostCSS step scopes GeoLibre's styles to the Analytics page and GEIDA's styles to
   everything else.
 - GeoLibre's static files are served at `/gis-assets/`.
-- The processing engine (`geolibre-wasm`) is copied into `public/vendor/` at build time,
-  so nothing loads from a CDN.
+- The Analytics workspace bundles its own copy of the GeoLibre processing engine (`geolibre-wasm`). The
+  project Toolbox doesn't run in the browser: it calls the server (`/api/toolbox/`), which runs the same engine.
 
 Keep changes inside `frontend/gis/` small and limited to what a GEIDA feature needs.
 

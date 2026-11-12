@@ -1,0 +1,82 @@
+/* Processing toolbox (project → Toolbox): tools, saved results, uploaded files. */
+.tbx { display: grid; gap: 12px; }
+.tbx-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); }
+.tbx-tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border: 0; border-right: 1px solid var(--line); background: var(--paper); font: inherit; font-size: .86rem; font-weight: 600; color: var(--ink-muted); cursor: pointer; }
+.tbx-tabs button:last-child { border-right: 0; }
+.tbx-tabs button[aria-selected="true"] { background: var(--ink); color: #fff; }
+.tbx-tabs em { font-style: normal; font-size: .74rem; padding: 0 6px; border-radius: 9px; background: rgba(127, 127, 127, .18); }
+.tbx-tabs .lucide { width: 14px; height: 14px; }
+
+.tbx-list { display: grid; gap: 8px; }
+.tbx-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--line); background: var(--paper); }
+.tbx-search .lucide { width: 16px; height: 16px; color: var(--ink-muted); }
+.tbx-search input { flex: 1; height: 38px; border: 0; outline: 0; background: none; font: inherit; color: var(--ink); }
+.tbx-cat { border: 1px solid var(--line); background: var(--paper); }
+.tbx-cat-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; background: none; font: inherit; font-weight: 600; font-size: .9rem; color: var(--ink); text-align: left; cursor: pointer; }
+.tbx-cat-head span { flex: 1; }
+.tbx-cat-head em { font-style: normal; font-size: .76rem; color: var(--ink-muted); }
+.tbx-cat-head .lucide { width: 16px; height: 16px; transition: transform .15s; }
+.tbx-cat.is-open .tbx-cat-head .lucide { transform: rotate(180deg); }
+.tbx-cat ul { list-style: none; margin: 0; padding: 0 6px 6px; display: grid; gap: 2px; }
+.tbx-tool { display: grid; gap: 2px; width: 100%; padding: 7px 8px; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.tbx-tool:hover { background: var(--sand); }
+.tbx-tool strong { font-size: .86rem; color: var(--ink); }
+.tbx-tool span { font-size: .76rem; color: var(--ink-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.tbx-form { display: grid; gap: 10px; }
+.tbx-form-head { display: flex; gap: 8px; align-items: flex-start; }
+.tbx-form-head h3 { margin: 0 0 2px; font-size: 1rem; }
+.tbx-form-head p { margin: 0; }
+.tbx-field { display: grid; gap: 4px; }
+.tbx-field > label { font-size: .82rem; font-weight: 600; color: var(--ink-muted); }
+.tbx-field .input { height: 36px; font-size: .88rem; }
+.tbx-req { color: #B3261E; margin-left: 2px; }
+.tbx-hint { margin: 0; font-size: .74rem; line-height: 1.35; color: var(--ink-muted); }
+.tbx-layers { display: grid; gap: 4px; }
+.tbx-layer { display: flex; gap: 4px; }
+.tbx-layer .input:first-child { flex: 1; min-width: 0; }
+.tbx-year { width: 84px; flex: none; }
+.tbx-actions { display: flex; justify-content: flex-end; }
+
+.tbx-results { display: grid; gap: 8px; }
+.tbx-results-head { display: flex; align-items: baseline; justify-content: space-between; }
+.tbx-runs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tbx-run { border: 1px solid var(--line); background: var(--paper); }
+.tbx-run.is-failed { border-color: rgba(179, 38, 30, .4); }
+.tbx-run-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+.tbx-run-row .ri { width: 16px; height: 16px; flex: none; }
+.tbx-run-main { flex: 1; min-width: 0; display: grid; gap: 1px; padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.tbx-run-main strong { font-size: .86rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbx-run-main span { font-size: .74rem; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbx-run-row .icon-btn[aria-pressed="true"] { color: var(--teal); }
+.tbx-error { margin: 0; padding: 0 8px 8px 30px; font-size: .78rem; color: #B3261E; }
+.tbx-detail { display: grid; gap: 8px; padding: 4px 8px 10px 30px; border-top: 1px solid var(--line); }
+.tbx-detail p { margin: 0; }
+.tbx-out { display: grid; gap: 4px; }
+.tbx-out-head { display: grid; gap: 1px; font-size: .84rem; }
+.tbx-downloads { display: flex; flex-wrap: wrap; gap: 4px; }
+.tbx-downloads .pw-link { width: auto; padding: 4px 8px; font-size: .78rem; }
+.tbx-table { overflow: auto; max-height: 220px; border: 1px solid var(--line); }
+.tbx-table table { border-collapse: collapse; font-size: .74rem; min-width: 100%; }
+.tbx-table th, .tbx-table td { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.tbx-table th { position: sticky; top: 0; background: var(--sand); }
+.tbx-report { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; margin: 0; }
+.tbx-report div { padding: 4px 6px; background: var(--sand); }
+.tbx-report dt { font-size: .7rem; color: var(--ink-muted); text-transform: capitalize; }
+.tbx-report dd { margin: 0; font-size: .84rem; font-weight: 600; }
+.tbx-detail-actions { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.tbx-detail-actions .link-btn { display: inline-flex; align-items: center; gap: 4px; }
+.tbx-detail-actions .lucide { width: 13px; height: 13px; }
+.tbx-danger { color: #B3261E !important; }
+
+.tbx-files { display: grid; gap: 8px; }
+.tbx-upload { justify-self: start; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.tbx-kind { flex: none; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 6px; background: var(--sand); color: var(--ink-muted); }
+
+/* Toolbox legends in the Layers panel */
+.pw-tool-legend { list-style: none; margin: 4px 0 6px 26px; padding: 0; display: grid; gap: 2px; font-size: .74rem; }
+.pw-tool-legend li { display: flex; align-items: center; gap: 6px; }
+.pw-tool-legend i { width: 12px; height: 12px; flex: none; }
+
+.tbx .spin { animation: spin 1s linear infinite; }
+.tbx .lucide.spin { width: 16px; height: 16px; }

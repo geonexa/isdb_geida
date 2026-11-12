@@ -96,7 +96,7 @@ Geofabrik index ──► smallest region covering the project bbox ──► <r
 
 ### Tag taxonomy as data
 
-`backend/seeds/data/osm_taxonomy.yaml` defines each layer: id, label, geometry
+`geida_static_data/OSM_Taxonomy/osm_taxonomy.yaml` defines each layer: id, label, geometry
 (point / line / polygon), tag filters, tags to keep, and how ways become points
 (centroid). Modules ask for layers by id (`ctx.osm("schools")`), never by raw tag.
 Changing what counts as a "health facility" is a data edit, not a code change.

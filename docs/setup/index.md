@@ -25,7 +25,7 @@ To install GEIDA on a server, use [Deployment](../deploy/index.md) instead.
 | Software | Version | Why | Install |
 |---|---|---|---|
 | **Git** | any recent | Get the code | macOS: `xcode-select --install`; Ubuntu: `sudo apt install git` |
-| **Conda** (Miniconda, Miniforge or Anaconda) | 23+ | Python 3.12 and the geospatial libraries (GDAL, PROJ, GEOS, SpatiaLite, rasterio) from conda-forge | [Miniforge](https://github.com/conda-forge/miniforge) recommended |
+| **Conda** (Miniconda, Miniforge or Anaconda) | 23+ | Python 3.12 and the geospatial libraries (GDAL, PROJ, GEOS, rasterio) from conda-forge | [Miniforge](https://github.com/conda-forge/miniforge) recommended |
 | **Node.js** | 22 or newer | Frontend build | [nodejs.org](https://nodejs.org) or `nvm install 22` |
 | **Redis** | 6+ | Queue for analysis runs | macOS: `brew install redis && brew services start redis`; Ubuntu: `sudo apt install redis-server` |
 
@@ -53,6 +53,6 @@ The platform downloads open data on demand. A development machine needs outbound
 | `conda.anaconda.org`, `registry.npmjs.org`, `pypi.org` | Package installation |
 
 !!! warning "Use conda-forge only"
-    GDAL, PROJ, GEOS, SpatiaLite and rasterio must all come from conda-forge, in one
+    GDAL, PROJ, GEOS and rasterio must all come from conda-forge, in one
     environment. Installing any of them with `pip` or Homebrew loads two versions of PROJ
     or GEOS and GeoDjango fails at start-up. See [Troubleshooting](troubleshooting.md).

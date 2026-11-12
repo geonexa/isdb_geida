@@ -12,7 +12,8 @@ Django admin under `/admin/`. It never renders the web app's pages.
 | `geoportal` | `/api/geoportal/` | Layer catalogue and basemaps, raster tiles and GeoTIFF clips through TiTiler, saved areas |
 | `boundaries` | `/api/boundaries/` | GADM administrative units (levels 0–3): search, GeoJSON, point lookup, union |
 | `projects` | `/api/projects/` | Projects, areas, indicators, CRIs, documents, import, review workflow, project data-catalog layers |
-| `analysis` | `/api/analysis/` | Module registry, runs, datasets, evidence; OSM and vector helpers |
+| `analysis` | `/api/analysis/` | Module registry, runs (start, cancel, delete), datasets, evidence; OSM and vector helpers |
+| `toolbox` | `/api/toolbox/` | Processing Toolbox: curated GeoLibre tools run on the server with wasmtime, saved tool runs, uploads |
 
 Each app has the same shape: `models.py`, `views.py` (plain JSON views), `urls.py`,
 `admin.py`, `tests*.py`, and `management/commands/` for data loaders.
@@ -24,7 +25,7 @@ backend/config/
 ├── settings/
 │   ├── __init__.py      imports development or production, chosen by DJANGO_ENV
 │   ├── base.py          shared settings: apps, paths, Celery, email, data services
-│   ├── development.py   SQLite + SpatiaLite, DEBUG on
+│   ├── development.py   PostgreSQL + PostGIS (local), DEBUG on
 │   └── production.py    PostgreSQL + PostGIS, secure cookies, secret key required
 ├── urls.py              /admin and /api/* routing
 ├── celery.py            Celery application
@@ -48,7 +49,9 @@ sets the cookie. Unknown `/api/` paths return a JSON 404.
 | Boundaries `/api/boundaries/` | `GET units/?iso3=&level=&parent=&q=` · `GET units/geojson/` · `GET units/<gid>/` · `GET at/?lon=&lat=` · `GET world/` · `POST union/` |
 | Projects `/api/projects/` | `GET,POST /` · `GET meta/` · `GET cri/?q=` · `POST area/preview/` · `GET import/template/` · `POST import/preview/` · `POST import/commit/` · `GET,PATCH,DELETE <code>/` · `PUT <code>/area/` · `PUT <code>/indicators/` · `PUT <code>/documents/` · `POST <code>/submit/`, `return/`, `publish/` |
 | Project data layers | `GET <code>/satellite/` · `GET <code>/satellite/<id>/tiles/?year=&cmap=&range=` · `GET <code>/satellite/<id>/xyz/<z>/<x>/<y>.png` · `GET <code>/satellite/<id>/download/` |
-| Analysis `/api/analysis/` | `GET datasets/` · `GET modules/?project=` · `GET,POST runs/` · `GET runs/<id>/` · `POST runs/<id>/cancel/` · `GET runs/<id>/files/<name>` · `GET evidence/` · `POST evidence/<id>/accept/`, `reject/` |
+| Analysis `/api/analysis/` | `GET datasets/` · `GET modules/?project=` · `GET,POST runs/` · `GET,DELETE runs/<id>/` · `POST runs/delete/` · `POST runs/<id>/cancel/` · `GET runs/<id>/files/<name>` · `GET evidence/` · `POST evidence/<id>/accept/`, `reject/` |
+| Toolbox `/api/toolbox/` | `GET tools/` · `GET <code>/inputs/` · `GET,POST <code>/runs/` · `GET,PATCH,DELETE runs/<id>/` · `POST runs/delete/` · `GET runs/<id>/files/<name>` · `GET,POST <code>/uploads/` · `DELETE uploads/<id>/` |
+| Map layouts | `GET,PUT /api/projects/<code>/map-layout/` · `GET,POST,DELETE /api/projects/map-templates/` |
 
 ## Background work
 
@@ -63,7 +66,7 @@ sequenceDiagram
     API->>Q: enqueue run id (after commit)
     API-->>UI: 201 run
     W->>Q: take run id
-    W->>W: load modules/<id>/run.py, fetch inputs
+    W->>W: load analyses/<category>/<id>/run.py, fetch inputs
     W->>W: write outputs to media/runs/<id>/
     W->>API: (database) status done, Evidence rows
     loop every 2.5 s
@@ -84,7 +87,7 @@ sequenceDiagram
 |---|---|
 | `seed [--boundaries] [--countries UGA,AZE]` | Load all reference data; idempotent, run on every deploy |
 | `load_cri [csv]` | CRI library only |
-| `sync_modules` | Register the modules found in `backend/modules/` |
+| `sync_modules` | Register the analyses found in `backend/analyses/` |
 | `load_admin_units [--countries] [--levels] [--replace]` | GADM administrative units only |
 | `run_worker [-c N] [--noreload]` | Celery worker; reloads on code change when `DEBUG` is on |
 | `requeue_runs [--stale N]` | Re-queue runs stuck in *queued* (or *running* for over N minutes) |

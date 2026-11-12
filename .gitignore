@@ -21,16 +21,16 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+# Old local database files (GEIDA uses PostgreSQL + PostGIS); kept ignored so a leftover file is never committed
 backend/db.sqlite3
 backend/db.sqlite3-journal
 backend/staticfiles/
 backend/media/
 *.log
 
-# Large local datasets (GADM boundaries, dataset overrides, download cache):
-# copied onto each machine, never committed. Only the README is tracked.
-backend/data/*
-!backend/data/README.md
+# Reference data lives outside the repository (REFERENCE_DATA_DIR, geida_static_data/); the runtime
+# cache DATA_DIR is .cache/. backend/data/ kept ignored in case an old local folder is left behind.
+backend/data/
 
 # --- Node / frontend ----------------------------------------------------------
 node_modules/
@@ -54,3 +54,10 @@ frontend/gis/packages/embed/dist/
 
 # Documentation site (mkdocs)
 /site/
+
+
+# Runtime cache (DATA_DIR): dataset clips, OSM extracts, derived products. Safe to delete.
+.cache
+
+# Large reference spreadsheets (over GitHub's 100 MB limit): kept locally only
+docs/planning/data-references/wapor/WaPOR_catalog_full.xlsx

@@ -1,0 +1,45 @@
+id: settlements
+version: 0.1.0
+title: Settlements and urbanisation
+question: Which villages and towns are there, how large, how urban?
+description: >
+  Classifies the area with the GHSL settlement model (degree of urbanisation, 1 km, JRC): urban
+  centres, dense and semi-dense urban clusters, peri-urban, rural clusters and low-density rural
+  land. Reports the share of people and land in each class (urban, peri-urban, rural), the same
+  per administrative unit, a map of the classes, and the named towns and villages from
+  OpenStreetMap with the people living around each.
+status: experimental
+category: people
+themes: [social, urban, energy, water, transport]
+phases: [preparation, completion]
+cri: []
+inputs:
+  required:
+    - {name: population, type: raster, default: ghsl_pop, label: "Population (GHS-POP R2023A, 100 m)"}
+    - {name: smod, type: raster, default: ghsl_smod, label: "Degree of urbanisation (GHS-SMOD R2023A, 1 km)"}
+  optional:
+    - {name: places, type: vector_point, default: osm_places, label: Named places (OpenStreetMap)}
+parameters:
+  - {name: year, type: choice, default: 2020, label: Epoch, choices: [{value: 2030, label: 2030 (projection)}, {value: 2025, label: 2025 (projection)}, {value: 2020, label: "2020"}, {value: 2015, label: "2015"}, {value: 2010, label: "2010"}, {value: 2000, label: "2000"}, {value: 1990, label: "1990"}, {value: 1975, label: "1975"}]}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: urban_share}
+  - {type: metric, name: periurban_share}
+  - {type: metric, name: rural_share}
+  - {type: metric, name: places_count, optional: true}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: table, name: places, optional: true}
+  - {type: raster, name: smod}
+requires: [gdal]
+limits: {max_area_km2: 100000}
+queue: raster
+runtime: under a minute (first run downloads GHSL tiles)
+citations: ["GHS-SMOD R2023A and GHS-POP R2023A, GHSL Data Package 2023, European Commission JRC, CC BY 4.0",
+            "Degree of Urbanisation (UN Statistical Commission 2020 / Eurostat)", "© OpenStreetMap contributors (ODbL)"]
+steps:
+  - read: GHS-POP (100 m, sum) and GHS-SMOD (1 km, nearest) on the same UTM grid
+  - classes: people and land per settlement class; urban = urban centre + dense + semi-dense clusters
+  - per_zone: urban, peri-urban and rural shares of people per admin unit
+  - places: OSM place points inside the area with their settlement class and people within about 1 km

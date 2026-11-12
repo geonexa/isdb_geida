@@ -1,0 +1,30 @@
+id: road_network
+version: 0.1.0
+title: Road network
+question: How many kilometres of road are mapped in the project area, of what class and surface?
+description: >
+  Measures the roads mapped in OpenStreetMap inside the area of influence: kilometres
+  by class (trunk to track), paved and unpaved, bridges, and road density per
+  administrative unit, with the network drawn on the map by class.
+status: curated
+category: infrastructure
+themes: [transport, infrastructure, agriculture, urban]
+phases: [preparation, implementation, completion]
+cri:
+  - {code: "2.2", role: verify}
+inputs:
+  required:
+    - {name: roads, type: vector_line, default: osm_roads, label: Roads}
+parameters:
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: km}
+  - {type: table, name: by_class}
+  - {type: table, name: per_zone}
+  - {type: vector, name: roads}
+  - {type: file, name: csv}
+steps:
+  - clip: [roads, area]
+  - length_by_zone: [highway, surface]
+citations: [OpenStreetMap]

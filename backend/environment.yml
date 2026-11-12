@@ -3,7 +3,7 @@
 #   conda env update -f environment.yml --prune (after changes)
 #   conda activate geida
 #
-# GDAL, PROJ, GEOS, SpatiaLite and rasterio must come from the same channel:
+# GDAL, PROJ, GEOS and rasterio must come from the same channel:
 # mixing in pip wheels, the "defaults" channel or Homebrew loads two PROJ
 # versions and coordinate lookups fail ("proj.db contains
 # DATABASE.LAYOUT.VERSION.MINOR = ..."). Don't `pip install` rasterio, GDAL,
@@ -17,9 +17,9 @@ dependencies:
   - pip
   - gdal
   - libgdal
+  - libgdal-arrow-parquet   # GeoParquet driver (Fields of The World field boundaries)
   - geos
   - proj>=9.6
-  - libspatialite
   - rasterio
   - shapely>=2
   - numpy

@@ -14,7 +14,7 @@ The plan is `docs/plan.md`; specs are in `docs/specs/`.
 ## Stack and commands
 
 - Backend: Django 5 + GeoDjango, conda env `geida` (`backend/environment.yml`).
-  SpatiaLite in development, PostGIS in production. Celery + Redis run analyses.
+  PostgreSQL + PostGIS in development and production. Celery + Redis run analyses.
 - Frontend: React 19 + TypeScript + Vite 8 + MapLibre. `frontend/gis/` is the
   GeoLibre workspace (MIT, vendored and ours to change).
 
@@ -29,11 +29,10 @@ The plan is `docs/plan.md`; specs are in `docs/specs/`.
 ## Where things go
 
 - New Django feature → an app in `backend/apps/<name>/` (models, views, urls, tests).
-- New analysis → a folder in `backend/modules/<id>/` (`manifest.yaml` + `run.py`);
-  no platform code changes. See `backend/modules/README.md`.
-- Reference data a fresh database needs → `backend/seeds/data/` plus a step in
-  `apps/core/management/commands/seed.py`.
-- Large datasets → `backend/data/` (git-ignored). Never commit rasters or GADM.
+- New analysis → a folder in `backend/analyses/<category>/<id>/` (`manifest.yaml` + `run.py`);
+  no platform code changes. See `backend/analyses/README.md`.
+- Reference data a fresh database needs → a folder in `REFERENCE_DATA_DIR` (`geida_static_data/`, outside the repo) plus an entry in its `catalog.json` with a `load` block; files read at run time via `apps.reference.catalog.dataset_file(id)`.
+- Seeding: one catalogue, `REFERENCE_DATA_DIR/catalog.json`, one `manage.py seed` (also registers the analyses). Runtime cache in `DATA_DIR` (`isdb_geida/.cache/`, git-ignored). Never commit rasters or GADM.
 - New page or feature in the UI → `frontend/src/features/<name>/`; reusable
   pieces → `frontend/src/shared/`; app shell and routes → `frontend/src/app/`.
 - Import with the `@/` alias across features; relative imports only within one.

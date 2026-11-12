@@ -14,7 +14,7 @@ flowchart LR
     G --> R[(Redis)]
     R --> W[geida-worker<br/>Celery]
     W --> P
-    W --> D[DATA_DIR<br/>OSM, boundaries, cache]
+    W --> D[DATA_DIR<br/>OSM extracts, cache]
     W --> M[backend/media<br/>run outputs]
 ```
 
@@ -52,4 +52,4 @@ Adjust them before copying them onto a different server.
 
 !!! warning "Production servers"
     Make changes on a shared server only with the team's agreement, and never delete data
-    folders (`DATA_DIR`, `backend/media`) or the database without a backup.
+    folders (`REFERENCE_DATA_DIR`, `DATA_DIR`, `backend/media`) or the database without a backup.

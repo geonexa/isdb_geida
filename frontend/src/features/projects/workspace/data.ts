@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/shared/api/client";
-import type { Evidence, ModuleCategory, ModuleInfo, Run } from "@/features/projects/types";
+import type { Evidence, ModuleCategory, ModuleInfo, Run, PlannedAnalysis } from "@/features/projects/types";
 
 export type Phase = { value: string; label: string; instrument: string };
 export const ACTIVE = new Set(["queued", "running"]);
@@ -17,7 +17,7 @@ export const STAGE_PHASE: Record<string, string> = {
 export function useModules(code: string) {
   return useQuery({
     queryKey: ["modules", code],
-    queryFn: () => api<{ modules: ModuleInfo[]; categories: ModuleCategory[]; phases: Phase[] }>(`/api/analysis/modules/?project=${code}`),
+    queryFn: () => api<{ modules: ModuleInfo[]; planned?: PlannedAnalysis[]; categories: ModuleCategory[]; phases: Phase[] }>(`/api/analysis/modules/?project=${code}`),
   });
 }
 

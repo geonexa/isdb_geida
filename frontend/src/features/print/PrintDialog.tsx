@@ -9,13 +9,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { useAuth } from "@/features/auth/AuthContext";
 import { useConfirm } from "@/shared/components/Confirm";
 
 import { captureMap, MM_TO_CSS, projector, scaleOf, type BBox, type Camera } from "@/features/print/capture";
 import { copyPng, embeddedFontCss, exportPdf, exportPng, exportSvg, loadPicture, printPage, toDataUrl, usableDpi } from "@/features/print/export";
 import {
-  buildTemplate, deleteTemplate, fitToPage, instantiate, ISDB_LOGO, ITEM_LABEL, listTemplates, loadLayout,
-  newItem, pageSize, PAPERS, saveLayout, storeTemplate, TEMPLATES, uid, VARIABLES,
+  buildTemplate, deleteTemplate, fitToPage, instantiate, isGlobe, ISDB_LOGO, ITEM_LABEL, layoutOr, openStore,
+  newItem, pageSize, PAPERS, saveDpi, saveLayout, storeTemplate, TEMPLATES, uid, VARIABLES, type LayoutStore,
   type ColorbarItem, type Font, type Frame, type Item, type ItemType, type Layout, type LegendEntry, type LegendItem,
   type MapItem, type NorthItem, type OverviewItem, type Page, type PictureItem, type PrintContext, type Ramp,
   type SavedTemplate, type ScaleBarItem, type ShapeItem, type TemplateId, type TextItem, type Vars,
@@ -90,8 +91,29 @@ type Drag = {
  * bar, text, pictures, shapes); a list of the items; and the selected item's
  * properties. Exports to vector SVG, PNG, PDF or the printer.
  */
-export default function PrintDialog({ map, code, context, legend, areaBbox, countryBbox, ramp = null, onClose }: PrintDialogProps) {
-  const h = useHistory(() => loadLayout(code, ramp));
+export default function PrintDialog(props: PrintDialogProps) {
+  // Open the user's saved layouts first (their account when signed in, else this browser).
+  const { user } = useAuth();
+  const [store, setStore] = useState<LayoutStore | null>(null);
+  useEffect(() => {
+    let live = true;
+    openStore(props.code, !!user).then((s) => { if (live) setStore(s); });
+    return () => { live = false; };
+  }, [props.code, user]);
+  if (!store) {
+    return createPortal(
+      <div className="ple ple-opening" role="dialog" aria-modal="true" aria-label="Map layout">
+        <p className="muted"><LoaderCircle className="spin" aria-hidden="true" />Opening your map layout…</p>
+      </div>, document.body);
+  }
+  return <LayoutEditor {...props} store={store} />;
+}
+
+/** Saves to the account wait this long after the last change (and happen on close). */
+const SAVE_DELAY_MS = 1200;
+
+function LayoutEditor({ map, code, context, legend, areaBbox, countryBbox, ramp = null, onClose, store }: PrintDialogProps & { store: LayoutStore }) {
+  const h = useHistory(() => layoutOr(store.layout, ramp));
   const confirm = useConfirm();
   const { layout, commit, begin, transient } = h;
   const [sel, setSel] = useState<string | null>(null);
@@ -99,7 +121,7 @@ export default function PrintDialog({ map, code, context, legend, areaBbox, coun
   const [snap, setSnap] = useState(true);
   const [guides, setGuides] = useState(true);
   const [panMode, setPanMode] = useState<string | null>(null);
-  const [dpi, setDpi] = useState(() => Number(localStorage.getItem("geida.layout.dpi")) || 300);
+  const [dpi, setDpi] = useState(store.dpi);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [caps, setCaps] = useState<Record<string, MapImage & { key: string }>>({});
@@ -107,21 +129,37 @@ export default function PrintDialog({ map, code, context, legend, areaBbox, coun
   const [pictures, setPictures] = useState<Env["pictures"]>({});
   const [offsets, setOffsets] = useState<Record<string, [number, number]>>({});
   const [snapLines, setSnapLines] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
-  const [templates, setTemplates] = useState<SavedTemplate[]>(listTemplates);
+  const [templates, setTemplates] = useState<SavedTemplate[]>(store.templates);
   // Country and region boundaries for overview maps (null while loading).
   const [outlines, setOutlines] = useState<Outlines | null>(null);
   useEffect(() => { loadOutlines(areaBbox, context.country ?? "").then(setOutlines); }, []);
   // World outlines for globe locators, loaded the first time a globe is shown (null = failed).
   const [world, setWorld] = useState<World | null | undefined>(undefined);
-  const wantsGlobe = layout.items.some((i) => i.type === "overview" && (i as OverviewItem).extent === "globe");
+  const wantsGlobe = layout.items.some((i) => i.type === "overview" && isGlobe(i as OverviewItem));
   useEffect(() => { if (wantsGlobe && world === undefined) loadWorld().then(setWorld).catch(() => setWorld(null)); }, [wantsGlobe]);
   const drag = useRef<Drag | null>(null);
   const svg = useRef<SVGSVGElement>(null);
   const canvasEl = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
 
-  useEffect(() => { saveLayout(code, layout); }, [code, layout]);
-  useEffect(() => { try { localStorage.setItem("geida.layout.dpi", String(dpi)); } catch { /* ignore */ } }, [dpi]);
+  // Keep the layout: in the account a moment after the last change and when the dialog closes; in the browser at once.
+  const pending = useRef<Layout | null>(null);
+  const opened = useRef({ layout, dpi });
+  const flush = useRef(() => {
+    const l = pending.current;
+    pending.current = null;
+    if (l) saveLayout(store, code, l).catch(() => setError("Your layout couldn't be saved to your account. Check the connection; changes are kept while this window is open."));
+  });
+  useEffect(() => {
+    if (layout === opened.current.layout) return;
+    pending.current = layout;
+    const t = setTimeout(() => flush.current(), store.remote ? SAVE_DELAY_MS : 0);
+    return () => clearTimeout(t);
+  }, [layout]);
+  useEffect(() => () => flush.current(), []);
+  useEffect(() => {
+    if (dpi !== opened.current.dpi) saveDpi(store, code, dpi).catch(() => undefined);
+  }, [dpi]);
 
   const { w: W, h: H } = pageSize(layout.page);
   const item = layout.items.find((i) => i.id === sel) ?? null;
@@ -147,7 +185,7 @@ export default function PrintDialog({ map, code, context, legend, areaBbox, coun
   }, [map, areaBbox]);
 
   const overviewCamera = useCallback((it: OverviewItem, main?: MapImage): Camera | null => {
-    if (it.extent === "globe") return null; // drawn as vectors, no capture
+    if (isGlobe(it)) return null; // drawn as vectors, no capture
     const pad = Math.min(it.w, it.h) * MM_TO_CSS * 0.08;
     if (it.extent === "region" && outlines?.region) return { kind: "bounds", bbox: outlines.region.bbox, padding: pad };
     if (it.extent !== "around") {
@@ -162,7 +200,7 @@ export default function PrintDialog({ map, code, context, legend, areaBbox, coun
   }, [countryBbox, outlines]);
 
   const mapKey = (it: MapItem) => `${it.w.toFixed(1)}x${it.h.toFixed(1)}|${it.extent}|${it.extent === "custom" ? `${it.center[0].toFixed(5)},${it.center[1].toFixed(5)},${Math.round(it.scale)}` : ""}`;
-  const ovKey = (it: OverviewItem) => `${it.w.toFixed(1)}x${it.h.toFixed(1)}|${it.extent}|${it.zoomOut}|${it.mapId}|${caps[it.mapId]?.key ?? ""}|${outlines ? "o" : ""}`;
+  const ovKey = (it: OverviewItem) => `${it.w.toFixed(1)}x${it.h.toFixed(1)}|${isGlobe(it) ? "globe" : it.extent}|${it.zoomOut}|${it.mapId}|${caps[it.mapId]?.key ?? ""}|${outlines ? "o" : ""}`;
   const wanted = layout.items.filter((i) => i.visible && (i.type === "map" || i.type === "overview"))
     .map((i) => `${i.id}=${i.type === "map" ? mapKey(i) : ovKey(i as OverviewItem)}`).join(";");
 
@@ -432,8 +470,8 @@ export default function PrintDialog({ map, code, context, legend, areaBbox, coun
               ))}
             </div>
             <SavedTemplates templates={templates} onApply={async (t) => { if (await confirm({ title: `Load "${t.name}"?`, message: "It replaces this layout. You can undo with Ctrl+Z.", confirmLabel: "Load template" })) { commit(() => instantiate(t.layout)); setSel(null); setZoom("fit"); } }}
-              onDelete={async (t) => { if (await confirm({ title: `Delete the template "${t.name}"?`, message: "Layouts already made from it aren't affected.", confirmLabel: "Delete", tone: "danger" })) { deleteTemplate(t.name); setTemplates(listTemplates()); } }}
-              onSave={(n) => { try { storeTemplate(n, { ...layout, template: n }); setTemplates(listTemplates()); } catch (e) { setError((e as Error).message); } }} />
+              onDelete={async (t) => { if (await confirm({ title: `Delete the template "${t.name}"?`, message: "Layouts already made from it aren't affected.", confirmLabel: "Delete", tone: "danger" })) { try { setTemplates(await deleteTemplate(store, t.name)); } catch (e) { setError((e as Error).message); } } }}
+              onSave={async (n) => { try { setTemplates(await storeTemplate(store, n, { ...layout, template: n })); } catch (e) { setError((e as Error).message); } }} />
           </Section>
           <Section title="Add item" open>
             <div className="ple-add">
@@ -759,33 +797,39 @@ function OverviewProps({ it, update, layout, countryBbox, outlines }: PropsArgs 
           {maps.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </Row>
-      <Seg label="Area shown" value={it.extent}
-        options={[
-          ...(countryBbox || outlines?.country ? [["country", outlines?.country?.name ?? "Country"] as ["country", string]] : []),
-          ...(outlines?.region ? [["region", outlines.region.name] as ["region", string]] : []),
-          ["around", "Around the map"],
-          ["globe", "Globe"],
-        ]}
-        onChange={(extent) => update({ extent } as Partial<OverviewItem>)} />
-      {it.extent === "globe" && <GlobeProps it={it} update={update} />}
-      {it.extent === "around" && <Num label="Zoomed out ×" value={it.zoomOut} min={1.5} step={0.5} onChange={(zoomOut) => update({ zoomOut } as Partial<OverviewItem>, "zoomOut")} />}
-      {it.extent === "globe" ? (
-        <div className="ple-grid2">
-          <Color label="Area marker" value={it.boxColor} onChange={(boxColor) => update({ boxColor } as Partial<OverviewItem>, "box")} />
-          <Num label="Outline (mm)" value={it.outlineWidth ?? 0.35} min={0.1} step={0.05} onChange={(outlineWidth) => update({ outlineWidth } as Partial<OverviewItem>, "outline")} />
-        </div>
+      <Seg label="Style" value={isGlobe(it) ? "globe" : "map"}
+        options={[["globe", "Globe (3D)"], ["map", "2D map"]]}
+        onChange={(style) => update({ style, ...(it.extent === "globe" ? { extent: "country" } : {}) } as Partial<OverviewItem>)} />
+      {isGlobe(it) ? (
+        <>
+          <GlobeProps it={it} update={update} />
+          <div className="ple-grid2">
+            <Color label="Area marker" value={it.boxColor} onChange={(boxColor) => update({ boxColor } as Partial<OverviewItem>, "box")} />
+            <Num label="Outline (mm)" value={it.outlineWidth ?? 0.35} min={0.1} step={0.05} onChange={(outlineWidth) => update({ outlineWidth } as Partial<OverviewItem>, "outline")} />
+          </div>
+        </>
       ) : (
-        <div className="ple-grid2">
-          <Color label="Extent box" value={it.boxColor} onChange={(boxColor) => update({ boxColor } as Partial<OverviewItem>, "box")} />
-          <Num label="Line (mm)" value={it.boxWidth} min={0.1} step={0.1} onChange={(boxWidth) => update({ boxWidth } as Partial<OverviewItem>, "box")} />
-        </div>
-      )}
-      {it.extent !== "globe" && <Check label={it.extent === "region" ? "Country and region boundaries" : "Country boundary"} checked={it.outline !== false} onChange={(outline) => update({ outline } as Partial<OverviewItem>)} />}
-      {it.extent !== "globe" && it.outline !== false && (
-        <div className="ple-grid2">
-          <Color label="Boundary" value={it.outlineColor ?? "#0B3B47"} onChange={(outlineColor) => update({ outlineColor } as Partial<OverviewItem>, "outline")} />
-          <Num label="Line (mm)" value={it.outlineWidth ?? 0.35} min={0.1} step={0.05} onChange={(outlineWidth) => update({ outlineWidth } as Partial<OverviewItem>, "outline")} />
-        </div>
+        <>
+          <Seg label="Area shown" value={it.extent}
+            options={[
+              ...(countryBbox || outlines?.country ? [["country", outlines?.country?.name ?? "Country"] as ["country", string]] : []),
+              ...(outlines?.region ? [["region", outlines.region.name] as ["region", string]] : []),
+              ["around", "Around the map"],
+            ]}
+            onChange={(extent) => update({ extent } as Partial<OverviewItem>)} />
+          {it.extent === "around" && <Num label="Zoomed out ×" value={it.zoomOut} min={1.5} step={0.5} onChange={(zoomOut) => update({ zoomOut } as Partial<OverviewItem>, "zoomOut")} />}
+          <div className="ple-grid2">
+            <Color label="Extent box" value={it.boxColor} onChange={(boxColor) => update({ boxColor } as Partial<OverviewItem>, "box")} />
+            <Num label="Line (mm)" value={it.boxWidth} min={0.1} step={0.1} onChange={(boxWidth) => update({ boxWidth } as Partial<OverviewItem>, "box")} />
+          </div>
+          <Check label={it.extent === "region" ? "Country and region boundaries" : "Country boundary"} checked={it.outline !== false} onChange={(outline) => update({ outline } as Partial<OverviewItem>)} />
+          {it.outline !== false && (
+            <div className="ple-grid2">
+              <Color label="Boundary" value={it.outlineColor ?? "#0B3B47"} onChange={(outlineColor) => update({ outlineColor } as Partial<OverviewItem>, "outline")} />
+              <Num label="Line (mm)" value={it.outlineWidth ?? 0.35} min={0.1} step={0.05} onChange={(outlineWidth) => update({ outlineWidth } as Partial<OverviewItem>, "outline")} />
+            </div>
+          )}
+        </>
       )}
       {outlines && !outlines.country && <p className="muted small">No boundary found for this country.</p>}
     </Section>

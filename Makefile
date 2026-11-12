@@ -25,11 +25,11 @@ setup-frontend: ## Install frontend dependencies
 migrate: ## Apply database migrations
 	$(BE) $(PY) manage.py migrate
 
-seed: ## Load reference data (CRI library, analysis modules)
+seed: ## Seed the database from REFERENCE_DATA_DIR/catalog.json and register the analyses
 	$(BE) $(PY) manage.py seed
 
-seed-all: ## Reference data + GADM admin boundaries (slow)
-	$(BE) $(PY) manage.py seed --boundaries
+seed-list: ## What the catalogue lists, what is on disk and loaded
+	$(BE) $(PY) manage.py seed list
 
 backend: ## Django dev server on :8000
 	$(BE) $(PY) manage.py runserver

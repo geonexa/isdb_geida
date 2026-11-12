@@ -1,0 +1,44 @@
+id: forest_loss
+version: 0.1.0
+title: Forest cover and loss
+question: How much forest is there, and how much was lost each year?
+description: >
+  Uses the Hansen / University of Maryland Global Forest Change map (30 m, v1.12): forest in 2000
+  is land with tree canopy cover above a threshold (default 30%), and each forest pixel lost
+  between 2001 and 2024 carries the year of loss. Reports forest area in 2000, the loss per
+  year and in total, the same per administrative unit, and maps tree cover and loss by period.
+status: experimental
+category: land
+themes: [environment, agriculture, climate]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: treecover, type: raster, default: hansen_treecover2000, label: Tree canopy cover 2000 (Hansen GFC v1.12)}
+    - {name: lossyear, type: raster, default: hansen_lossyear, label: Year of forest loss (Hansen GFC v1.12)}
+parameters:
+  - {name: threshold, type: number, default: 30, min: 10, max: 90, label: Forest from canopy cover (%)}
+  - {name: from_year, type: number, default: 2001, min: 2001, max: 2024, label: Count loss from year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: forest_2000}
+  - {type: metric, name: forest_share}
+  - {type: metric, name: loss_km2}
+  - {type: metric, name: loss_share}
+  - {type: table, name: loss_by_year}
+  - {type: table, name: per_zone}
+  - {type: raster, name: treecover}
+  - {type: raster, name: loss}
+requires: [gdal]
+limits: {max_area_km2: 50000}
+queue: raster
+runtime: under two minutes for 10,000 km²
+citations: ["Hansen, M. C. et al. 2013. High-Resolution Global Maps of 21st-Century Forest Cover Change. Science 342: 850–853. Global Forest Change 2000–2024 v1.12, University of Maryland, CC BY 4.0"]
+steps:
+  - read: tree canopy cover 2000 and loss year, 30 m, local UTM zone
+  - forest: canopy cover at or above the threshold in 2000
+  - loss: forest pixels with a loss year from the chosen year to 2024, per year and per admin unit
+acceptance: >
+  Loss is stand-replacement disturbance (forest cleared, burnt or harvested), not net change:
+  regrowth is not subtracted. Plantation harvests count as loss.

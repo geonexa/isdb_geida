@@ -28,13 +28,13 @@ flowchart LR
 | Change | Location |
 |---|---|
 | New backend feature | A Django app in `backend/apps/<name>/` (models, views, urls, tests) |
-| New analysis | A folder in `backend/modules/<id>/`; no platform code changes ([guide](adding-a-module.md)) |
-| Reference data a fresh database needs | `backend/seeds/data/` plus a step in `apps/core/management/commands/seed.py` |
-| Large datasets | `backend/data/` (git-ignored); never commit rasters or GADM |
+| New analysis | A folder in `backend/analyses/<category>/<id>/`; no platform code changes ([guide](adding-a-module.md)) |
+| Reference data a fresh database needs | A folder in `REFERENCE_DATA_DIR` plus an entry in its `catalog.json` ([guide](../setup/reference-data.md)) |
+| Seed data | `REFERENCE_DATA_DIR/catalog.json` (outside the repository); `manage.py seed`, which also registers the analyses. Never commit rasters or GADM |
 | New page or feature in the web app | `frontend/src/features/<name>/` |
 | Reusable UI pieces | `frontend/src/shared/` |
 | Routes and application shell | `frontend/src/app/` |
-| A basemap or catalogue layer | `backend/apps/geoportal/catalog.py` |
+| A basemap or catalogue layer | `backend/apps/analysis/data/catalog.py` (also makes COG layers available to analyses) |
 
 ## Rules
 

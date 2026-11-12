@@ -13,6 +13,7 @@ urlpatterns = [
     path("api/geoportal/", include("apps.geoportal.urls")),
     path("api/boundaries/", include("apps.boundaries.urls")),
     path("api/projects/", include("apps.projects.urls")),
+    path("api/toolbox/", include("apps.toolbox.urls")),
     path("api/analysis/", include("apps.analysis.urls")),
     re_path(r"^api/", not_found),  # unknown API paths answer in JSON, not HTML
 ]

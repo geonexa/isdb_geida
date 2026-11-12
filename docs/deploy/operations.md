@@ -36,7 +36,8 @@ in `/admin` → *Module runs*.
 | Database | PostgreSQL `geida` | Daily, and before every release with migrations |
 | Run outputs and uploads | `backend/media/` | Daily |
 | Configuration | `backend/.env` | After every change, to a secure location |
-| Large datasets | `DATA_DIR` | Not needed: boundaries can be copied again, OSM and cache re-download |
+| Reference data | `REFERENCE_DATA_DIR` | Keep one copy (shared drive): it can be rebuilt from the publishers with `catalog.json`, slowly |
+| Runtime cache | `DATA_DIR` | Not needed: OSM extracts and clips re-download |
 
 ```bash
 # Database
@@ -54,7 +55,7 @@ tar czf geida-media-$(date +%F).tar.gz -C ~/isdb_geida/backend media
 |---|---|
 | Re-queue runs stuck after a Redis restart | `python manage.py requeue_runs` (add `--stale 90` for runs *running* over 90 minutes) |
 | Refresh a country's OSM data | Delete `DATA_DIR/osm/<region>.osm.pbf`; the next run downloads the current extract |
-| Free disk space | Delete `DATA_DIR/cache/` (rebuilt on demand) |
+| Free disk space | Delete the contents of `DATA_DIR` (`.cache/`, rebuilt on demand) |
 | Renew the certificate | Automatic with certbot's timer; check with `sudo certbot renew --dry-run` |
 | Add a reviewer or analyst | `/admin` → *Users* → groups `GEIDA reviewers` / `GEIDA analysts` |
 

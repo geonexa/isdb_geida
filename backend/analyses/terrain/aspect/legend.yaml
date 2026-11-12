@@ -1,0 +1,12 @@
+# Aspect classes: 0 = flat, 1–8 = direction the slope faces (apps.analysis.ops.terrain.ASPECT_CLASSES)
+type: classes
+items:
+  - {value: 0, color: "#D9D9D9", label: Flat}
+  - {value: 1, color: "#E41A1C", label: North}
+  - {value: 2, color: "#FF7F00", label: North-east}
+  - {value: 3, color: "#FFFF33", label: East}
+  - {value: 4, color: "#4DAF4A", label: South-east}
+  - {value: 5, color: "#00CED1", label: South}
+  - {value: 6, color: "#377EB8", label: South-west}
+  - {value: 7, color: "#984EA3", label: West}
+  - {value: 8, color: "#F781BF", label: North-west}

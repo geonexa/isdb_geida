@@ -75,7 +75,7 @@ concept note (PCN) to post-evaluation (PPER).</p>
 | **Owner** | Islamic Development Bank (IsDB) |
 | **Developed by** | Terra, Expo City Dubai |
 | **Live site** | [geida.terrawatch.net](https://geida.terrawatch.net) (staging) |
-| **Backend** | Django 6 + GeoDjango JSON API, Celery + Redis worker, PostGIS (production) / SpatiaLite (development) |
+| **Backend** | Django 6 + GeoDjango JSON API, Celery + Redis worker, PostgreSQL + PostGIS (development and production) |
 | **Frontend** | React 19, TypeScript, Vite 8, MapLibre GL, GeoLibre GIS workspace |
 | **Raster data** | Cloud-optimised GeoTIFFs, drawn and cut by TiTiler |
 | **Vector data** | OpenStreetMap (Geofabrik extracts), GADM administrative boundaries |

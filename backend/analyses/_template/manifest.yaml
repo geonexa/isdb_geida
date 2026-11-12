@@ -1,0 +1,26 @@
+# {{title}}: manifest. Schema and field reference: apps/analysis/core/manifest.py and analyses/README.md.
+id: {{id}}
+version: 0.1.0                       # bump when results change (semantic version)
+title: {{title}}
+question: {{question}}
+description: >
+  What the analysis does, in two or three sentences for project teams.
+status: experimental                 # experimental until reviewed, then curated
+category: {{category}}               # must match the folder: analyses/{{category}}/{{id}}/
+themes: []
+phases: {{phases}}                   # preparation (PPRR), implementation (PIASR), completion (PCR)
+cri: []                              # [{code: "2.2", role: verify | context | estimate | measure}]
+inputs:
+  required: []                       # [{name: dem, type: raster, default: copernicus_dem_30, label: Elevation}]
+  optional: []
+parameters:
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:                             # every output run.py produces (checked after each run)
+  - {type: metric, name: area_km2}
+  - {type: table, name: per_zone}
+requires: []                         # engines: gdal, grass, whitebox
+limits: {max_area_km2: 100000}
+queue: light                         # light | raster | heavy
+runtime: under a minute
+citations: []

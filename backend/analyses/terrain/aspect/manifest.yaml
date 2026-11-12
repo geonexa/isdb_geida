@@ -1,0 +1,37 @@
+id: aspect
+version: 0.1.0
+title: Aspect
+question: Which way do the slopes face?
+description: >
+  Computes the direction each slope faces (north, north-east, …) from the Copernicus 30 m
+  elevation model, reports the area facing each direction and the flat area, the main
+  direction overall and per administrative unit, and maps the aspect. Useful for solar
+  siting, crop choice and erosion risk.
+status: experimental
+category: terrain
+themes: [energy, agriculture, water]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: flat_threshold, type: number, default: 2, min: 0.5, max: 10, label: Flat below (degrees of slope)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: main_direction}
+  - {type: metric, name: flat_share}
+  - {type: metric, name: south_facing_share}
+  - {type: table, name: directions}
+  - {type: table, name: per_zone}
+  - {type: raster, name: aspect, legend: legend.yaml}
+requires: [gdal]
+limits: {max_area_km2: 60000}
+queue: raster
+runtime: under a minute for 10,000 km²
+citations: [Copernicus DEM GLO-30 (ESA)]
+steps:
+  - read: dem with a 250 m margin, local UTM zone
+  - aspect: Horn's 3×3 method, degrees clockwise from north
+  - classes: 8 directions; flat where slope is below the threshold

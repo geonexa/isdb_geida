@@ -146,3 +146,8 @@
   .ple-left, .ple-right { border: 0; border-top: 1px solid var(--line); overflow: visible; }
   .ple-tools .ple-sep { display: none; }
 }
+
+/* While the user's saved layout is fetched */
+.ple.ple-opening { display: grid; place-items: center; }
+.ple.ple-opening p { display: flex; align-items: center; gap: 8px; }
+.ple.ple-opening svg { width: 18px; height: 18px; }

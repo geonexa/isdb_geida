@@ -1,0 +1,108 @@
+id: suitability
+version: 0.1.0
+title: Site suitability
+question: Where does an intervention fit best, given your own conditions on terrain, land, water, people and access?
+description: >
+  Finds the land that meets conditions you set, for example slope under 10°, elevation above 100 m,
+  cropland, annual ETa above 200 mm, within 2 km of a road. Each condition has a weight, and can be a
+  must-have that excludes land failing it. Every 30 m cell gets a score (the weighted share of
+  conditions it meets, 0–100%); the result shows suitability classes, how much land is suitable per
+  administrative unit, and the best sites as polygons.
+status: experimental
+category: planning
+themes: [agriculture, water, energy, education, health, transport, urban, infrastructure, environment]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+  optional:
+    - {name: landcover, type: raster, default: landcover, label: Land cover (ESA WorldCover 2021)}
+    - {name: precipitation, type: raster, default: precipitation, label: "Rainfall (FAO WaPOR v3 L1, CHIRPS)"}
+    - {name: eta, type: raster, default: eta, label: Actual evapotranspiration (FAO WaPOR v3 L1)}
+    - {name: biomass, type: raster, default: biomass-global, label: Biomass production (FAO WaPOR v3 L1)}
+    - {name: water, type: raster, default: surface-water, label: Surface water occurrence (JRC)}
+    - {name: treecover, type: raster, default: hansen_treecover2000, label: Tree cover 2000 (Hansen / UMD)}
+    - {name: population, type: raster, default: worldpop, label: "Population (WorldPop R2025A, 100 m)"}
+    - {name: travel, type: raster, default: map_tt_cities, label: Travel time to cities (Malaria Atlas Project)}
+    - {name: roads, type: vector_line, default: osm_roads, label: Roads (OpenStreetMap)}
+    - {name: waterways, type: vector_line, default: osm_waterways, label: Rivers and streams (OpenStreetMap)}
+    - {name: places, type: vector_point, default: osm_places, label: Named places (OpenStreetMap)}
+    - {name: power_lines, type: vector_line, default: osm_power_lines, label: Power lines (OpenStreetMap)}
+    - {name: schools, type: vector_point, default: osm_schools, label: Schools (OpenStreetMap)}
+    - {name: health, type: vector_point, default: osm_health, label: Health facilities (OpenStreetMap)}
+parameters:
+  - name: criteria
+    type: criteria
+    label: Conditions
+    layers:
+      - {id: slope, label: Slope, kind: range, unit: "°", group: Terrain}
+      - {id: elevation, label: Elevation, kind: range, unit: m, group: Terrain}
+      - id: landcover
+        label: Land cover (ESA WorldCover)
+        kind: classes
+        group: Land
+        classes:
+          - {value: 10, label: Tree cover}
+          - {value: 20, label: Shrubland}
+          - {value: 30, label: Grassland}
+          - {value: 40, label: Cropland}
+          - {value: 50, label: Built-up}
+          - {value: 60, label: Bare / sparse vegetation}
+          - {value: 70, label: Snow and ice}
+          - {value: 80, label: Permanent water}
+          - {value: 90, label: Herbaceous wetland}
+          - {value: 95, label: Mangroves}
+          - {value: 100, label: Moss and lichen}
+      - {id: treecover, label: Tree cover in 2000, kind: range, unit: "%", group: Land}
+      - {id: biomass, label: Biomass production, kind: range, unit: kg/ha/year, group: Land}
+      - {id: precipitation, label: Annual rainfall, kind: range, unit: mm, group: Water}
+      - {id: eta, label: Annual actual evapotranspiration (ETa), kind: range, unit: mm, group: Water}
+      - {id: water, label: Surface water occurrence, kind: range, unit: "% of the time", group: Water}
+      - {id: dist_waterways, label: Distance to rivers and streams, kind: range, unit: km, group: Water}
+      - {id: population, label: Population density, kind: range, unit: people per km², group: People}
+      - {id: dist_places, label: "Distance to named places (towns, villages)", kind: range, unit: km, group: People}
+      - {id: travel, label: "Travel time to a city of 50,000+", kind: range, unit: minutes, group: Access}
+      - {id: dist_roads, label: Distance to roads, kind: range, unit: km, group: Access}
+      - {id: dist_power, label: Distance to power lines, kind: range, unit: km, group: Access}
+      - {id: dist_schools, label: Distance to schools, kind: range, unit: km, group: Services}
+      - {id: dist_health, label: Distance to health facilities, kind: range, unit: km, group: Services}
+    default:
+      - {layer: slope, max: 10, weight: 30, must: true}
+      - {layer: elevation, min: 100, weight: 20, must: false}
+      - {layer: landcover, classes: [40], weight: 30, must: false}
+      - {layer: eta, min: 200, weight: 20, must: false}
+  - {name: year, type: choice, default: 2024, label: Year for rainfall / ETa / biomass,
+     choices: [{value: 2025, label: "2025"}, {value: 2024, label: "2024"}, {value: 2023, label: "2023"}, {value: 2022, label: "2022"},
+               {value: 2021, label: "2021"}, {value: 2020, label: "2020"}, {value: 2019, label: "2019"}, {value: 2018, label: "2018"}]}
+  - {name: min_score, type: number, default: 75, min: 1, max: 100, label: Suitable from score (%)}
+  - {name: min_site_km2, type: number, default: 0.5, min: 0, max: 1000, label: Smallest site to list (km²)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: suitable_km2}
+  - {type: metric, name: suitable_share}
+  - {type: metric, name: excluded_share}
+  - {type: metric, name: site_count}
+  - {type: table, name: criteria}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: table, name: sites}
+  - {type: raster, name: suitability}
+  - {type: raster, name: score}
+  - {type: vector, name: site_polygons}
+requires: [gdal]
+limits: {max_area_km2: 30000}
+queue: heavy
+runtime: about a minute for 5,000 km²; longer with many distance or WaPOR conditions
+citations: ["Copernicus DEM GLO-30 (ESA)", "ESA WorldCover 2021", "FAO WaPOR v3 (L1)", "JRC Global Surface Water",
+            "Hansen / UMD Global Forest Change v1.12", "WorldPop Global2 R2025A", "Malaria Atlas Project (Weiss et al. 2018)",
+            "OpenStreetMap"]
+steps:
+  - read: Copernicus DEM for the area (30 m, local UTM zone) sets the grid; each condition's layer is read and resampled onto it (classes by nearest neighbour, counts with totals kept)
+  - derive: slope from the DEM (Horn); population density per km² over 1 km blocks; straight-line distance in km to OpenStreetMap features (up to 10 km outside the area)
+  - test: each condition gives met / not met per cell (no data counts as not met)
+  - score: weighted share of conditions met (0–100%); a cell failing a must-have is excluded
+  - classes: excluded, low (under 50%), moderate (50–74%), high (75–99%), all conditions met (100%)
+  - sites: connected cells at or above the suitable score form sites; sites at least the smallest size are listed and mapped
+  - summary: area per class, suitable area per admin unit, share of the area meeting each condition

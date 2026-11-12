@@ -1,0 +1,40 @@
+id: land_cover
+version: 0.1.0
+title: Land cover composition
+question: How much of the area is cropland, forest, built-up, water and other classes?
+description: >
+  Counts the area of each land cover class over the area of influence from a 10 m land cover map
+  (ESA WorldCover 2020 / 2021, or the yearly Esri / Impact Observatory map, 2017–2023), with the
+  shares of cropland, trees and built-up land, the same per administrative unit, and the map.
+status: experimental
+category: land
+themes: [agriculture, environment, water, urban]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: landcover, type: raster, default: landcover, label: Land cover (ESA WorldCover 10 m)}
+parameters:
+  - {name: landcover_dataset, type: choice, default: landcover, label: Land cover map,
+     choices: [{value: landcover, label: "ESA WorldCover (2020, 2021; 11 classes)"},
+               {value: lulc_annual, label: "Esri / Impact Observatory (yearly 2017–2023; 9 classes)"}]}
+  - {name: year, type: number, default: 2021, min: 2017, max: 2023, label: Year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: cropland_share}
+  - {type: metric, name: tree_share}
+  - {type: metric, name: built_share}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: raster, name: land_cover}
+requires: [gdal]
+limits: {max_area_km2: 30000}
+queue: raster
+runtime: under two minutes for 10,000 km²
+citations: ["ESA WorldCover 10 m 2020 v100 / 2021 v200 (Zanaga et al. 2021, 2022), CC BY 4.0",
+            "Esri / Impact Observatory / Microsoft, 10 m annual land use land cover v02, CC BY 4.0"]
+steps:
+  - read: the chosen land cover map for the year, 10 m, local UTM zone (nearest neighbour)
+  - classes: area and share of each class inside the area
+  - per_zone: main class and cropland, tree and built-up shares per admin unit

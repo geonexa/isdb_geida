@@ -46,12 +46,12 @@ sudo -u postgres psql -d geida -c "CREATE EXTENSION postgis;"
 git clone <repo-url> ~/isdb_geida && cd ~/isdb_geida
 conda env create -f backend/environment.yml && conda activate geida
 cp backend/.env.example backend/.env       # DJANGO_ENV=production, secret key, POSTGRES_*
-#   copy the GADM files into backend/data/boundaries/ (see backend/data/README.md)
+#   copy geida_static_data/ next to the repository (or set REFERENCE_DATA_DIR in .env); see docs/setup/reference-data.md
 
 # 4. Database schema and reference data
 cd backend
 python manage.py migrate
-python manage.py seed --boundaries        # CRI library, modules, admin units (slow: ~4 GB)
+python manage.py seed                     # required datasets: modules, CRI library, admin units (first run slow: ~4 GB)
 python manage.py createsuperuser
 python manage.py collectstatic --noinput
 
@@ -82,9 +82,9 @@ The restructure moved folders that the server's copy still has in the old place:
 
 | Old | New | Action on the server |
 |---|---|---|
-| `static_data/` | `backend/data/` | `mv static_data/* backend/data/` (or set `DATA_DIR=` in `.env`) |
-| `modules/` | `backend/modules/` | none: comes with `git pull` |
-| `backend/data/*.csv, *.geojson` | `backend/seeds/data/` | none: comes with `git pull` |
+| `static_data/`, `backend/data/` | `geida_static_data/` (reference data, `REFERENCE_DATA_DIR`) next to the repository, and `.cache/` (runtime cache, `DATA_DIR`) inside it | move GADM into `geida_static_data/Admin_Boundaries/`, copy `catalog.json`; delete the old cache |
+| `analyses/` | `backend/analyses/` | none: comes with `git pull` |
+| `backend/data/*.csv, *.geojson`, `osm_taxonomy.yaml` | `geida_static_data/` (`IsDB_CRI_Library/`, `IsDB_Member_Countries/`, `OSM_Taxonomy/`) | copy with the rest of `geida_static_data/` |
 | `deploy/apache.conf` | `deploy/apache/geida.conf` | none unless the live config is a symlink |
 | `config/settings.py` | `config/settings/` package | none: `DJANGO_SETTINGS_MODULE=config.settings` is unchanged |
 

@@ -249,7 +249,7 @@ JRC_URL = "https://storage.googleapis.com/global-surface-water/downloads2021/occ
 def _worldcover_tiles(year):
     """Names of the WorldCover tiles that exist (land), from ESA's grid file, cached on disk."""
     version, url = WORLDCOVER[year]
-    path = Path(settings.DATA_DIR) / "cache" / "raster" / f"worldcover_grid_{version}.json"
+    path = Path(settings.DATA_DIR) / "raster" / f"worldcover_grid_{version}.json"
     if path.exists():
         return frozenset(json.loads(path.read_text()))
     try:

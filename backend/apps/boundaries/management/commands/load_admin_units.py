@@ -1,5 +1,5 @@
 """
-Load GADM admin boundaries prepared by backend/scripts/prepare_gadm.py.
+Load GADM admin boundaries prepared by apps/reference/prepare/prepare_gadm.py.
 
     python manage.py load_admin_units [--levels 0,1,2,3] [--countries UGA,AZE] [--replace]
     python manage.py load_admin_units --full ""      # simplified shapes only (quick dev load)
@@ -7,8 +7,9 @@ Load GADM admin boundaries prepared by backend/scripts/prepare_gadm.py.
 
 Both files have layers adm0..adm3. --simplified alone also works (the
 simplified geometry is then used for both columns, e.g. for a quick dev load).
-By default both files are read from backend/data/boundaries/
-(settings.DATA_DIR); GADM_GPKG / GADM_GPKG_SIMPLIFIED in .env override that.
+By default both files are read from REFERENCE_DATA_DIR/Admin_Boundaries/ (dataset "gadm" in
+REFERENCE_DATA_DIR/catalog.json; normally run through `manage.py seed --only gadm`);
+GADM_GPKG / GADM_GPKG_SIMPLIFIED in .env override that.
 """
 import os
 import re
@@ -27,7 +28,7 @@ BATCH = 500
 # geometry size (WKB bytes; the query carries them hex-encoded, about twice that).
 BATCH_BYTES = 64 * 1024 * 1024
 GID_RE = re.compile(r"^[A-Z0-9]{3}(\.[0-9.]+_\d+)?$")
-BOUNDARIES = settings.DATA_DIR / "boundaries"
+BOUNDARIES = settings.REFERENCE_DATA_DIR / "Admin_Boundaries"  # dataset "gadm" in REFERENCE_DATA_DIR/catalog.json
 DEFAULT_FULL = os.environ.get("GADM_GPKG") or str(BOUNDARIES / "gadm41_adm0-3.gpkg")
 DEFAULT_SIMPLIFIED = os.environ.get("GADM_GPKG_SIMPLIFIED") or str(BOUNDARIES / "gadm41_adm0-3_simplified.gpkg")
 TEXT_FIELDS = ("name_local", "type", "parent_gid", "name_1", "name_2", "name_3", "hasc")
@@ -62,7 +63,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opts):
         full, simple = opts["full"], opts["simplified"]
         if not (full or simple):
-            raise CommandError("Pass --full and/or --simplified, or put the files in backend/data/boundaries/.")
+            raise CommandError("Pass --full and/or --simplified, or put the files in REFERENCE_DATA_DIR/Admin_Boundaries/.")
         for p in (full, simple):
             if p and not os.path.exists(p):
                 raise CommandError(f"File not found: {p}")

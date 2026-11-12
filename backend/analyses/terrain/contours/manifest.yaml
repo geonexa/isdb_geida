@@ -1,0 +1,36 @@
+id: contours
+version: 0.1.0
+title: Contours
+question: Contour lines at a chosen interval, ready to download.
+description: >
+  Draws contour lines from the Copernicus 30 m elevation model inside the area of influence,
+  at a chosen interval (or a round interval picked from the elevation range), with every
+  fifth line marked as an index contour. Shown on the map and downloadable as a GeoPackage.
+status: experimental
+category: terrain
+themes: [infrastructure, water, agriculture]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: interval, type: number, default: 0, min: 0, max: 1000, label: Interval (m; 0 = automatic)}
+  - {name: smoothing, type: choice, default: light, label: Smoothing,
+     choices: [{value: none, label: None}, {value: light, label: Light (3 × 3 pixels)}, {value: strong, label: Strong (5 × 5 pixels)}]}
+outputs:
+  - {type: metric, name: interval}
+  - {type: metric, name: lines}
+  - {type: metric, name: length_km}
+  - {type: vector, name: contours}
+  - {type: file, name: gpkg}
+requires: [gdal]
+limits: {max_area_km2: 30000}
+queue: raster
+runtime: under a minute for 10,000 km²
+citations: [Copernicus DEM GLO-30 (ESA)]
+steps:
+  - read: dem with a 250 m margin, local UTM zone; outside the area set to no data
+  - smooth: mean filter (optional)
+  - contour: gdal ContourGenerate at the interval; every fifth line an index contour
+  - write: GeoPackage (UTM) and simplified GeoJSON (map)

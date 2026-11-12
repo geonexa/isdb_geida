@@ -1,0 +1,35 @@
+id: buildings
+version: 0.2.0
+title: Buildings and settlement density
+question: How many buildings are in the project area, what kind, and where are settlements concentrated?
+description: >
+  Counts the building footprints mapped in OpenStreetMap inside the area of influence,
+  measures their total footprint, breaks them down by type (residential, commercial,
+  public, ...), and maps their density on a grid. Summarised per administrative unit.
+status: curated
+category: infrastructure
+themes: [urban, infrastructure, energy, water, health, education, transport]
+phases: [preparation, implementation, completion]
+cri:
+  - {code: "6.2", role: context}
+inputs:
+  required:
+    - {name: buildings, type: vector_polygon, default: osm_buildings, label: Building footprints}
+parameters:
+  - {name: cell_m, type: number, default: 500, min: 100, max: 5000, label: Density grid cell (m)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: count}
+  - {type: table, name: by_kind}
+  - {type: table, name: per_zone}
+  - {type: vector, name: density}
+  - {type: vector, name: footprints}
+  - {type: file, name: grid_csv}
+steps:
+  - select_by_location: [buildings, area]
+  - footprint_area: {}
+  - classify: building
+  - grid_counts: cell_m
+  - count_by_zone: {}
+citations: [OpenStreetMap]

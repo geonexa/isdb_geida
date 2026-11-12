@@ -120,3 +120,57 @@ class OnboardingTests(TestCase):
         self.assertEqual(p.source, "import")
         self.assertEqual(p.themes, ["water", "agriculture"])
         self.assertTrue(hasattr(p, "area"))
+
+
+class MapLayoutTests(TestCase):
+    """Map export layouts are kept per user in the database, so they follow the user to any computer."""
+    LAYOUT = {"version": 2, "page": {"size": "A4", "orientation": "landscape"}, "items": [{"id": "t1", "type": "text"}]}
+
+    @classmethod
+    def setUpTestData(cls):
+        U = get_user_model()
+        cls.editor = U.objects.create_user("ed", "ed@example.org", "pw-123456!")
+        cls.other = U.objects.create_user("ot", "ot@example.org", "pw-123456!")
+        Project.objects.create(code="AZE1028", title="Karabakh canal", country_iso3="AZE", owner=cls.editor)
+
+    def setUp(self):
+        self.client.force_login(self.editor)
+
+    def call(self, method, url, body=None):
+        return getattr(self.client, method)(url, json.dumps(body) if body is not None else None, content_type="application/json")
+
+    def test_layout_and_resolution_follow_the_user(self):
+        r = self.call("get", "/api/projects/AZE1028/map-layout/").json()
+        self.assertEqual((r["layout"], r["dpi"], r["templates"]), (None, 300, []))
+        self.assertEqual(r["stored"], {"layout": False, "settings": False})
+        self.assertEqual(self.call("put", "/api/projects/AZE1028/map-layout/", {"layout": self.LAYOUT, "dpi": 600}).status_code, 200)
+        self.client.logout()
+        self.client.force_login(self.editor)            # another session: another computer or browser
+        r = self.call("get", "/api/projects/aze1028/map-layout/").json()
+        self.assertEqual((r["layout"], r["dpi"], r["stored"]), (self.LAYOUT, 600, {"layout": True, "settings": True}))
+        self.assertEqual(self.call("get", "/api/projects/AZE1028/map-layout/").status_code, 200)
+        self.client.force_login(self.other)
+        self.assertEqual(self.call("get", "/api/projects/AZE1028/map-layout/").status_code, 404)   # can't see the draft
+        Project.objects.filter(code="AZE1028").update(status="published")
+        self.assertIsNone(self.call("get", "/api/projects/AZE1028/map-layout/").json()["layout"])  # each user has their own
+
+    def test_templates(self):
+        r = self.call("post", "/api/projects/map-templates/", {"name": "IsDB A4", "layout": self.LAYOUT})
+        self.assertEqual([t["name"] for t in r.json()["templates"]], ["IsDB A4"])
+        r = self.call("post", "/api/projects/map-templates/", {"templates": [{"name": "Poster", "layout": self.LAYOUT},
+                                                                             {"name": "IsDB A4", "layout": self.LAYOUT}]})
+        self.assertEqual(sorted(t["name"] for t in r.json()["templates"]), ["IsDB A4", "Poster"])   # same name replaced
+        r = self.call("delete", "/api/projects/map-templates/", {"name": "Poster"})
+        self.assertEqual([t["name"] for t in r.json()["templates"]], ["IsDB A4"])
+        for i in range(25):
+            self.call("post", "/api/projects/map-templates/", {"name": f"T{i}", "layout": self.LAYOUT})
+        self.assertEqual(len(self.call("get", "/api/projects/map-templates/").json()["templates"]), 20)
+
+    def test_refuses_bad_input_and_anonymous_users(self):
+        r = self.call("put", "/api/projects/AZE1028/map-layout/", {"layout": {"items": []}})
+        self.assertIn("isn't a map layout", r.json()["error"])
+        self.assertEqual(self.call("put", "/api/projects/AZE1028/map-layout/", {"dpi": 1234}).status_code, 400)
+        self.assertEqual(self.call("post", "/api/projects/map-templates/", {"name": " ", "layout": self.LAYOUT}).status_code, 400)
+        self.assertEqual(self.call("get", "/api/projects/NOPE01/map-layout/").status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.call("get", "/api/projects/map-templates/").status_code, 401)

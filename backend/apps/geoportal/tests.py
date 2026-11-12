@@ -65,15 +65,13 @@ class CatalogTests(TestCase):
         self.assertTrue(LAYERS["cropland"]["view_only"])  # WorldCereal: Terrascope pictures, not Earth Engine
         self.assertFalse(hasattr(settings, "EE_KEY"))
 
-    def test_config_lists_clippable_layers(self):
+    def test_config_catalog(self):
         cfg = self.client.get("/api/geoportal/config/").json()
-        ids = {c["id"] for c in cfg["clippable"]}
-        self.assertTrue({"eta", "precipitation", "biomass", "landcover", "elevation", "surface-water"} <= ids)
         # Computed on the fly from many DEM tiles: project areas only, not the global page.
         portal = {l["id"] for g in cfg["catalog"] for l in g["layers"]}
-        self.assertFalse({"slope", "hillshade"} & (portal | ids))
-        self.assertNotIn("member-countries", ids)
-        self.assertNotIn("ndvi", ids)  # planned until processed into GEIDA's storage
+        self.assertFalse({"slope", "hillshade"} & portal)
+        self.assertTrue({"eta", "precipitation", "landcover", "elevation"} <= portal)
+        self.assertNotIn("toolbox", cfg)   # the processing Toolbox is server-side, per project (apps/toolbox)
 
     def test_single_cog_tiles_go_straight_to_titiler(self):
         r = self.client.get("/api/geoportal/layers/eta/tiles/?year=2020").json()
@@ -269,12 +267,9 @@ class ViewOnlyLayerTests(TestCase):
     """Pictures from outside services (NASA GIBS, Terrascope, Esri) and WMS overviews of COG layers."""
 
     def test_view_only_layers_are_not_clippable(self):
-        cfg = self.client.get("/api/geoportal/config/").json()
-        clip = {c["id"] for c in cfg["clippable"]}
         for lid in ("ndvi", "lst", "population", "wayback", "lulc-esri", "cropland", "irrigation"):
             self.assertEqual(LAYERS[lid]["kind"], "tiles")
             self.assertTrue(LAYERS[lid]["view_only"])
-            self.assertNotIn(lid, clip)
         r = self.client.post("/api/geoportal/layers/ndvi/clip/", '{"geometry": {"type": "Point", "coordinates": [0, 0]}}',
                              content_type="application/json")
         self.assertEqual(r.status_code, 400)
@@ -400,3 +395,47 @@ class WaporLayerTests(TestCase):
         with mock.patch("urllib.request.urlopen", side_effect=[Resp(p) for p in pages]):
             self.assertEqual(raster.wapor_periods("L1-PCP-M"), ["2024-05", "2024-06"])
         cache.delete("wapor:periods:L1-PCP-M")
+
+
+class PlaceSearchTests(TestCase):
+    """GET /api/geoportal/search/: admin units while typing, geocoded places on Enter (mocked)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from apps.boundaries.models import AdminUnit
+        box = MultiPolygon(Polygon.from_bbox((34.4, 2.3, 34.9, 2.9)), srid=4326)
+        for gid, name, level in (("UGA.1_1", "Moroto", 1), ("UGA.1.1_1", "Moroto Municipality", 2), ("UGA.2_1", "Kotido", 1)):
+            AdminUnit.objects.create(gid=gid, level=level, iso3="UGA", country="Uganda", name=name, name_1="Moroto",
+                                     geom=box, geom_display=box)
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_admin_units_as_you_type(self):
+        with mock.patch("apps.geoportal.search.urllib.request.urlopen") as urlopen:
+            d = self.client.get("/api/geoportal/search/?q=moro").json()
+        urlopen.assert_not_called()   # no geocoder call without places=1
+        self.assertEqual([r["name"] for r in d["results"]], ["Moroto", "Moroto Municipality"])
+        self.assertEqual(d["results"][0]["bbox"], [34.4, 2.3, 34.9, 2.9])
+        self.assertEqual(d["results"][1]["detail"], "Moroto, Uganda")
+        self.assertEqual(self.client.get("/api/geoportal/search/?q=m").json()["results"], [])
+
+    def test_places_on_enter_cached(self):
+        answer = [{"display_name": "Moroto, Karamoja, Uganda", "name": "Moroto", "type": "town", "lat": "2.53", "lon": "34.66",
+                   "boundingbox": ["2.4", "2.6", "34.6", "34.7"]}] * 2
+        resp = mock.MagicMock()
+        resp.__enter__.return_value.read.return_value = json.dumps(answer).encode()
+        with mock.patch("apps.geoportal.search.urllib.request.urlopen", return_value=resp) as urlopen:
+            d = self.client.get("/api/geoportal/search/?q=Moroto&places=1").json()
+            self.client.get("/api/geoportal/search/?q=moroto&places=1")
+        self.assertEqual(urlopen.call_count, 1)   # second search answered from the cache
+        osm = [r for r in d["results"] if r["source"] == "osm"]
+        self.assertEqual(len(osm), 1)             # duplicates dropped
+        self.assertEqual((osm[0]["kind"], osm[0]["bbox"], osm[0]["detail"]), ("Town", [34.6, 2.4, 34.7, 2.6], "Karamoja, Uganda"))
+
+    def test_geocoder_down(self):
+        with mock.patch("apps.geoportal.search.urllib.request.urlopen", side_effect=OSError("timeout")):
+            d = self.client.get("/api/geoportal/search/?q=Kotido&places=1").json()
+        self.assertEqual([r["name"] for r in d["results"]], ["Kotido"])
+        self.assertIn("unavailable", d["note"])

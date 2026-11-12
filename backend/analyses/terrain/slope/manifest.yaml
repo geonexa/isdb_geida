@@ -1,0 +1,38 @@
+id: slope
+version: 0.1.0
+title: Slope and slope classes
+question: How steep is the land, and how much of it falls in each slope class?
+description: >
+  Computes the slope of the terrain from the Copernicus 30 m elevation model over the area of
+  influence, reports the mean slope and the share of steep land, the area in each slope class
+  (flat to very steep) and the same per administrative unit, and maps the slope.
+status: experimental
+category: terrain
+themes: [agriculture, water, infrastructure, energy, transport]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: units, type: choice, default: degrees, label: Units,
+     choices: [{value: degrees, label: Degrees}, {value: percent, label: Percent rise}]}
+  - {name: steep_threshold, type: number, default: 15, min: 1, max: 60, label: Steep from (degrees)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: mean_slope}
+  - {type: metric, name: steep_share}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: raster, name: slope, legend: legend.yaml}
+requires: [gdal]
+limits: {max_area_km2: 60000}
+queue: raster
+runtime: under a minute for 10,000 km²
+citations: [Copernicus DEM GLO-30 (ESA)]
+steps:
+  - read: dem with a 250 m margin, local UTM zone
+  - slope: Horn's 3×3 method (as gdaldem)
+  - classes: flat, gentle, moderate, strong, steep, very steep
+  - per_zone: mean slope and steep share per admin unit

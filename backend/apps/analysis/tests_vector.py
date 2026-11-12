@@ -8,7 +8,7 @@ import numpy as np
 import shapely
 from django.test import SimpleTestCase
 
-from apps.analysis import vector
+from apps.analysis.ops import vector
 
 TMP = Path(tempfile.mkdtemp(prefix="geida-vector-test-"))
 M_PER_DEG = 2 * math.pi * vector.R / 360

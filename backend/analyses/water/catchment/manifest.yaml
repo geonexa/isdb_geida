@@ -1,0 +1,44 @@
+id: catchment
+version: 0.2.0
+title: Catchment from a point
+question: Which land drains to a chosen point (a dam, intake, bridge or road crossing), and how large and steep is it?
+description: >
+  Traces the catchment upstream of a point picked on the map, from the Copernicus 30 m elevation
+  model with WhiteboxTools. The point is first moved onto the nearest stream, and the elevation
+  model is enlarged until the whole catchment fits, so it may reach far beyond the area of
+  influence. Reports its area, elevation, slope, longest flow path, time of concentration
+  and streams, and maps the catchment, its streams and the outlet.
+status: experimental
+category: water
+themes: [water, agriculture, environment, transport, energy]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: outlet, type: point, label: "Outlet (dam, intake, bridge or crossing)"}
+  - {name: snap_to, type: choice, default: nearest, label: Snap to,
+     choices: [{value: nearest, label: The nearest stream (draining 1 km² or more)},
+               {value: largest, label: The largest stream within the distance (e.g. the main river)}]}
+  - {name: snap_m, type: number, default: 300, min: 0, max: 5000, label: Snapping distance (m)}
+  - {name: max_area_km2, type: number, default: 25000, min: 10, max: 25000, label: Largest catchment to trace (km²)}
+outputs:
+  - {type: metric, name: area_km2}
+  - {type: metric, name: in_area_share}
+  - {type: metric, name: mean_slope}
+  - {type: table, name: profile}
+  - {type: vector, name: catchment}
+  - {type: vector, name: streams}
+  - {type: vector, name: outlet_point}
+requires: [gdal, whitebox]
+queue: heavy
+runtime: under a minute for most catchments; a few minutes for 10,000 km² and more
+citations: ["Copernicus DEM GLO-30 (ESA)", "WhiteboxTools (Lindsay 2016), University of Guelph, MIT licence",
+            "Jenson (1991) pour point snapping", "Kirpich (1940) time of concentration"]
+steps:
+  - outlet: the picked point moved onto the nearest stream draining 1 km² or more (Jenson 1991), or onto the largest stream, within the snapping distance; a warning names the nearby streams when the point is on none
+  - read: Copernicus DEM around the area with a 5 km margin, local UTM zone; enlarged on each side the catchment reaches (up to the largest catchment), at 90 m once the clip passes 45,000 km²
+  - flow: depressions breached, D8 flow direction and accumulation (WhiteboxTools, cached)
+  - catchment: WhiteboxTools Watershed from the outlet
+  - profile: area, elevation and slope, longest flow path (WhiteboxTools), Kirpich time of concentration, streams by Strahler order

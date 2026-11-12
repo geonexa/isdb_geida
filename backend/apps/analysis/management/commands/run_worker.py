@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import autoreload
 
-from apps.analysis.envcheck import raster_env_problem
+from apps.analysis.core.envcheck import raster_env_problem
 from config.celery import app
 
 

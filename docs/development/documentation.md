@@ -90,6 +90,19 @@ docs/
 2. Add it to `nav:` in `mkdocs.yml`.
 3. Run `mkdocs build` and fix any warnings.
 
+## Generated pages
+
+The **Analyses** section (`docs/analyses/`) is written from the analyses themselves (each `manifest.yaml` and
+`METHOD.md`), so don't edit those pages by hand. After adding or changing an analysis:
+
+```bash
+cd backend
+python manage.py document_analyses            # rewrite docs/analyses/
+python manage.py document_analyses --check    # what the test suite checks: fails if the pages are out of date
+```
+
+A new category page also needs a line under `Analyses:` in `mkdocs.yml`.
+
 ## Recording a change
 
 For every release:

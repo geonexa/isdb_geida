@@ -1,0 +1,43 @@
+id: biomass
+version: 0.2.0
+title: Biomass production
+question: How much biomass does the land produce each year?
+description: >
+  Sums FAO WaPOR v3 level 1 total biomass production (300 m, dry matter, global) over the area of influence for
+  a year (2018–2025): total production, mean per hectare, the mean on cropland (ESA WorldCover),
+  the same per administrative unit and per land cover class, and optionally the change against
+  a comparison year.
+status: experimental
+category: land
+themes: [agriculture, water, environment]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: biomass, type: raster, default: biomass-global, label: Biomass production (FAO WaPOR v3 L1 300 m)}
+  optional:
+    - {name: landcover, type: raster, default: landcover, label: Land cover (ESA WorldCover 2021) for cropland}
+parameters:
+  - {name: year, type: number, default: 2024, min: 2018, max: 2025, label: Year}
+  - {name: compare_year, type: number, default: 0, min: 0, max: 2025, label: Compare with year (0 = none)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: total_biomass}
+  - {type: metric, name: mean_biomass}
+  - {type: metric, name: cropland_mean, optional: true}
+  - {type: metric, name: change_pct, optional: true}
+  - {type: table, name: per_zone}
+  - {type: table, name: by_landcover, optional: true}
+  - {type: raster, name: biomass}
+  - {type: raster, name: change, optional: true}
+requires: [gdal]
+limits: {max_area_km2: 200000}
+queue: raster
+runtime: under a minute for 10,000 km²
+citations: ["FAO WaPOR v3, Total Biomass Production, level 1 (300 m, global), annual", "ESA WorldCover 10 m 2021 v200 (Zanaga et al. 2022), CC BY 4.0"]
+steps:
+  - read: WaPOR L1 total biomass production for the year, 300 m, local UTM zone
+  - totals: sum of kg/ha × pixel area; mean per hectare inside the area
+  - cropland: WorldCover 2021 resampled to the 300 m grid (nearest); mean on cropland pixels
+  - compare: the same for the comparison year; change in percent per pixel and per admin unit

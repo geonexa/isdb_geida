@@ -7,7 +7,7 @@ and the web app on port 5173.
 flowchart LR
     U[Browser<br/>localhost:5173] --> V[Vite dev server<br/>:5173]
     V -->|/api, /admin| D[Django runserver<br/>:8000]
-    D --> S[(SQLite + SpatiaLite<br/>backend/db.sqlite3)]
+    D --> S[(PostgreSQL + PostGIS<br/>database geida)]
     D --> R[(Redis :6379)]
     R --> W[run_worker<br/>Celery]
 ```
@@ -27,7 +27,7 @@ conda env create -f environment.yml     # creates the "geida" environment (5–1
 conda activate geida
 ```
 
-The environment contains Python 3.12, GDAL, PROJ, GEOS, SpatiaLite, rasterio, shapely 2
+The environment contains Python 3.12, GDAL, PROJ, GEOS, rasterio, shapely 2
 and the packages in `requirements.txt` (Django, Celery, Gunicorn, …).
 
 After someone changes `environment.yml` or `requirements.txt`, update with:
@@ -42,24 +42,35 @@ conda env update -f environment.yml --prune
 cp .env.example .env
 ```
 
-The defaults work for development: SQLite database, emails printed in the console,
+The defaults work for development: PostgreSQL database `geida` on `localhost:5432` as your
+own user without a password (as Postgres.app sets it up), emails printed in the console,
 Redis on `localhost:6379`. Every setting is explained in [Configuration](configuration.md).
+
+Development uses PostgreSQL + PostGIS, the same database as production. Install PostgreSQL 15+
+with PostGIS 3 (on a Mac, [Postgres.app](https://postgresapp.com) includes both), then create the
+database once:
+
+```bash
+createdb geida
+psql -d geida -c "CREATE EXTENSION postgis"
+```
 
 ## 4. Create the database and load reference data
 
 ```bash
-python manage.py migrate                 # builds backend/db.sqlite3
-python manage.py seed                    # CRI library, analysis modules
+python manage.py migrate                 # creates the tables in the geida database
+python manage.py seed                    # CRI library, analysis modules, admin boundaries (from REFERENCE_DATA_DIR/catalog.json)
 python manage.py createsuperuser         # your admin account
 ```
 
-Administrative boundaries are optional for a first run but needed for the "pick
-administrative units" area method and for per-unit summaries. Copy the GADM files into
-`backend/data/boundaries/` (see [Reference data](reference-data.md)), then:
+Administrative boundaries and the other large datasets come from the reference data folder
+`geida_static_data/` (copy it next to the repository, or set `REFERENCE_DATA_DIR`; see
+[Reference data](reference-data.md)). Without it, `seed` loads the small seeds and reports the
+missing catalogue. To load only a few countries of GADM first:
 
 ```bash
-python manage.py seed --boundaries --countries UGA,AZE   # a few countries first
-python manage.py seed --boundaries                       # all countries (slow: reads ~4 GB)
+python manage.py seed list                               # what is on disk and loaded
+python manage.py seed --only gadm --countries UGA,AZE    # a few countries first
 ```
 
 ## 5. Run the backend and the worker

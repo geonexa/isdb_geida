@@ -1,0 +1,43 @@
+id: land_cover_change
+version: 0.1.0
+title: Land cover change
+question: What land cover changed into what between two years?
+description: >
+  Compares the yearly 10 m Esri / Impact Observatory land cover maps of two years (2017–2023)
+  over the area of influence: how much land changed, the main transitions (e.g. trees to crops,
+  crops to built area), the gain or loss of each class, the same per administrative unit, and
+  maps of both years and of the changes.
+status: experimental
+category: land
+themes: [agriculture, environment, urban]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: landcover, type: raster, default: lulc_annual, label: Land cover (Esri / Impact Observatory yearly 10 m)}
+parameters:
+  - {name: year_from, type: number, default: 2017, min: 2017, max: 2023, label: From year}
+  - {name: year_to, type: number, default: 2023, min: 2017, max: 2023, label: To year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: changed_share}
+  - {type: metric, name: cropland_change}
+  - {type: metric, name: tree_change}
+  - {type: metric, name: built_change}
+  - {type: table, name: transitions}
+  - {type: table, name: classes}
+  - {type: table, name: per_zone}
+  - {type: raster, name: cover_from}
+  - {type: raster, name: cover_to}
+  - {type: raster, name: changes}
+requires: [gdal]
+limits: {max_area_km2: 20000}
+queue: raster
+runtime: under two minutes for 10,000 km²
+citations: ["Esri / Impact Observatory / Microsoft, 10 m annual land use land cover v02 (Karra et al. 2021), CC BY 4.0"]
+steps:
+  - read: both years of the Esri / Impact Observatory map, 10 m, local UTM zone
+  - mask: pixels classed as clouds in either year are left out
+  - transitions: area of every from-to pair; class gains and losses
+  - per_zone: changed share and net change of cropland, trees and built area per admin unit

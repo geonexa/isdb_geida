@@ -9,3 +9,6 @@ pyyaml
 numpy
 shapely>=2.0         # conda-forge via environment.yml (same GEOS as GDAL); vector analysis helpers
 celery[redis]>=5.4
+pydantic>=2.7,<3   # analysis manifest schema (apps/analysis/core/manifest.py)
+whitebox==2.3.6      # WhiteboxTools wrapper (hydrology: flow, streams, watersheds); executable fetched on first use or WHITEBOX_DIR
+wasmtime==50.0.1          # runs the GeoLibre Toolbox engine (apps/toolbox/engine.py)

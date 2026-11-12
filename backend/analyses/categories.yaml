@@ -1,0 +1,48 @@
+# Analysis categories: how the catalogue groups analyses in a project's Analyses tab.
+# Each module's manifest (and each entry in planned.yaml) names one category id.
+# icon: a lucide icon name the frontend knows (see AnalysesTab CATEGORY_ICONS);
+# unknown names fall back to a generic icon.
+# order: position in the catalogue (lowest first).
+# Plan: docs/planning/analysis-catalogue-plan.md
+
+categories:
+  - id: terrain
+    title: Terrain and site conditions
+    description: What is the physical setting of the site? Elevation, slope, aspect, contours, landforms and soils.
+    icon: mountain
+    order: 1
+  - id: water
+    title: Water resources
+    description: Where does water come from and go? Catchments, rivers, surface water, rainfall, evapotranspiration and water accounting.
+    icon: droplets
+    order: 2
+  - id: land
+    title: Land, vegetation and agriculture
+    description: What covers the land and how productive is it? Land cover and change, vegetation indices, fields, crops and forests.
+    icon: sprout
+    order: 3
+  - id: hazards
+    title: Climate and natural hazards
+    description: What climate and hazards does the area face, and what is exposed? Climate trends, drought, floods, landslides and heat.
+    icon: cloud-lightning
+    order: 4
+  - id: people
+    title: People and socio-economics
+    description: Who lives here and how well served are they? Population, settlements, access, electrification and wealth.
+    icon: users
+    order: 5
+  - id: infrastructure
+    title: Infrastructure and services
+    description: What is built and what services exist? Buildings, transport, schools, health, public facilities, power and utilities.
+    icon: building
+    order: 6
+  - id: planning
+    title: Site selection and planning
+    description: Where should the intervention go? Suitability, candidate sites, service gaps and alternatives.
+    icon: target
+    order: 7
+  - id: monitoring
+    title: Monitoring and impact
+    description: What has changed since the baseline, and what did the project achieve? Change, progress, before and after, beneficiaries.
+    icon: activity
+    order: 8

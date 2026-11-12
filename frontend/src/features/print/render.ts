@@ -7,7 +7,7 @@ import type { MultiPolygon, Polygon } from "geojson";
 import { projector, scaleOf, type BBox, type CapturedMap } from "@/features/print/capture";
 import { DEFAULT_GLOBE, globeSvg, type World } from "@/features/print/globe";
 import {
-  fillVars, pageSize,
+  fillVars, isGlobe, pageSize,
   type ColorbarItem, type Font, type Frame, type Item, type Layout, type LegendEntry, type LegendItem, type MapItem,
   type NorthItem, type OverviewItem, type PictureItem, type Ramp, type ScaleBarItem, type ShapeItem, type TextItem, type Vars,
 } from "@/features/print/layout";
@@ -208,7 +208,7 @@ function renderGrid(it: MapItem, bounds: BBox, clip: string) {
 
 function renderOverview(it: OverviewItem, env: Env, items: Item[], defs: string[]) {
   const b: Box = { x: it.x, y: it.y, w: it.w, h: it.h };
-  if (it.extent === "globe") {
+  if (isGlobe(it)) {
     let out = env.world && env.globe
       ? globeSvg(b, it.id, { world: env.world, center: env.globe.center, highlight: { gid: env.globe.gid, name: env.globe.name },
           marker: env.globe.marker, style: { ...DEFAULT_GLOBE, ...it.globe }, markerColor: it.boxColor, lineWidth: it.outlineWidth ?? 0.35 })

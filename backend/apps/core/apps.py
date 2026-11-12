@@ -7,11 +7,4 @@ class CoreConfig(AppConfig):
     verbose_name = "GEIDA core"
 
     def ready(self):
-        from django.conf import settings
-
         from . import checks  # noqa: F401  (registers the GDAL/PROJ startup check)
-
-        if "spatialite" in settings.DATABASES["default"]["ENGINE"]:
-            from .spatialite_wkb import install
-
-            install()

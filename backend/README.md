@@ -35,8 +35,8 @@ so the session cookie and CSRF token work without CORS.
                └───────┬──────────────────────────────┬──────────────────────────────┘
                        │ ORM (GeoDjango)              │ enqueue run
                        ▼                              ▼
-          SpatiaLite (dev) / PostGIS (prod)       Redis ──► Celery worker
-                                                           │ loads modules/<id>/run.py
+          PostgreSQL + PostGIS                   Redis ──► Celery worker
+                                                           │ loads analyses/<category>/<id>/run.py
                                                            │ fetches open data → data/cache/
                                                            ▼
                                                    outputs → media/runs/, Evidence rows
@@ -46,10 +46,10 @@ so the session cookie and CSRF token work without CORS.
   app reads the CSRF cookie and sends `X-CSRFToken` on every write.
 - **Long work off the request.** Analysis runs go to Celery (`config/celery.py`);
   the API only creates a `ModuleRun` and the UI polls its status.
-- **Modules are plug-ins.** The registry reads `modules/<id>/manifest.yaml` at
+- **Modules are plug-ins.** The registry reads `analyses/<category>/<id>/manifest.yaml` at
   runtime; adding an analysis never touches app code.
 - **Data stays data.** CRI codes, module ids and member countries are loaded from
-  files (`seeds/`, `modules/`), never hard-coded.
+  files (`seeds/`, `analyses/`), never hard-coded.
 
 ## Project layout
 
@@ -59,7 +59,7 @@ backend/
 │   ├── settings/
 │   │   ├── __init__.py      picks development or production from DJANGO_ENV
 │   │   ├── base.py          shared settings, paths, Celery, email
-│   │   ├── development.py   SQLite + SpatiaLite, DEBUG
+│   │   ├── development.py   PostGIS (local), DEBUG
 │   │   └── production.py    PostgreSQL + PostGIS, secure cookies
 │   ├── urls.py              /admin and /api/* routing
 │   ├── celery.py            Celery app (worker: `manage.py run_worker`)
@@ -71,11 +71,7 @@ backend/
 │   ├── boundaries/          AdminUnit model, `load_admin_units`
 │   ├── projects/            Project, ProjectArea, Indicator, CRI, documents, importer
 │   └── analysis/            Module, ModuleRun, Evidence; registry, runner, datasets
-├── modules/                 analysis modules: <id>/manifest.yaml + run.py
-├── seeds/                   reference data committed to git (see seeds/README.md)
-│   └── data/                isdb_cri_2025_seed.csv, isdb_member_countries.geojson
-├── data/                    large local datasets, git-ignored (see data/README.md)
-├── scripts/                 one-off data preparation (prepare_gadm.py)
+├── analyses/                analyses: <category>/<id>/manifest.yaml + run.py
 ├── templates/               email templates
 ├── media/                   uploads and run outputs (git-ignored)
 ├── environment.yml          conda env "geida" (GDAL, PROJ, GEOS from conda-forge)
@@ -99,7 +95,7 @@ Project ──1:1── ProjectArea (MultiPolygon, EPSG:4326, area_km2)
    └──1:n── ModuleRun (module, phase, params, status, outputs)
                  └──1:n── Evidence (value, unit, role, method, data, caveats,
                                     status: pending → accepted / rejected)
-Module (synced from modules/<id>/manifest.yaml)
+Module (synced from analyses/<category>/<id>/manifest.yaml)
 ```
 
 - **Project status:** `draft` → `review` → `published`. Only published projects
@@ -126,11 +122,11 @@ Module (synced from modules/<id>/manifest.yaml)
 1. `GET /api/analysis/modules/?project=CODE` lists modules with availability
    (`ready`, `needs data`, `not available`), CRI matches first.
 2. `POST /api/analysis/runs/` queues a `ModuleRun` for a project phase.
-3. The Celery worker loads `modules/<id>/run.py`, fetches inputs through the
+3. The Celery worker loads `analyses/<category>/<id>/run.py`, fetches inputs through the
    dataset registry (local override in `data/datasets/`, else download to
    `data/cache/`), and writes layers, tables and previews to `media/runs/<id>/`.
    OpenStreetMap layers come from the country's Geofabrik extract in `data/osm/`,
-   cut per area with GDAL (`apps/analysis/osm/`), with Overpass as fallback.
+   cut per area with GDAL (`apps/analysis/data/osm/`), with Overpass as fallback.
 4. Results linked to a project indicator create `Evidence` rows. A user accepts
    or rejects each value; nothing is written to the Results Framework on its own.
 
@@ -164,7 +160,7 @@ Prefixes: `/api/auth/`, `/api/geoportal/`, `/api/boundaries/`, `/api/projects/`,
 
 ## Setup
 
-Requires conda. GDAL, PROJ, GEOS, SpatiaLite and rasterio must come from one
+Requires conda. GDAL, PROJ, GEOS and rasterio must come from one
 channel (conda-forge); mixing pip wheels or Homebrew loads two PROJ/GEOS builds
 and GeoDjango fails at import.
 
@@ -174,8 +170,8 @@ conda env create -f environment.yml          # creates "geida"
 conda activate geida
 cp .env.example .env
 python manage.py migrate
-python manage.py seed                        # CRI library + analysis modules
-python manage.py seed --boundaries           # optional: GADM units (files in data/boundaries/)
+python manage.py seed                        # required datasets: modules, CRI, GADM (needs REFERENCE_DATA_DIR)
+python manage.py seed list                   # what is on disk and loaded
 python manage.py createsuperuser             # optional: /admin
 python manage.py runserver                   # http://127.0.0.1:8000
 python manage.py run_worker                  # second terminal, needs Redis
@@ -196,13 +192,14 @@ check `python manage.py check`; the startup check `geida.E001` reports PROJ mism
 |---|---|
 | `DJANGO_ENV` | `development` (default) or `production` |
 | `DJANGO_SECRET_KEY` | required in production |
-| `DATABASE_NAME` | SQLite file in development |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | database (development defaults: `geida`, your user, localhost) |
 | `POSTGRES_*` | database in production |
 | `TITILER_URL` | tile server that draws the raster layers (default `https://titiler.waterinag.org`) |
 | `STAC_API_URL` | STAC catalogue for tiled datasets (default Earth Search on AWS) |
 | `REDIS_URL` | Celery broker |
 | `CELERY_TASK_ALWAYS_EAGER` | run analyses inline (no worker) |
-| `DATA_DIR` | large datasets, default `backend/data` |
+| `REFERENCE_DATA_DIR` | large reference datasets + `catalog.json`, default `geida_static_data/` next to the repository |
+| `DATA_DIR` | runtime cache (clips, OSM extracts), default `.cache/` in the repository |
 | `EMAIL_*` | SMTP; empty prints emails to the console |
 
 ## Commands
@@ -211,7 +208,7 @@ check `python manage.py check`; the startup check `geida.E001` reports PROJ mism
 |---|---|
 | `seed [--boundaries] [--countries UGA,AZE]` | load all reference data (idempotent) |
 | `load_cri [csv]` | CRI library only |
-| `sync_modules` | register `modules/*` manifests |
+| `sync_modules` | register `analyses/*/*` manifests |
 | `load_admin_units [--countries] [--levels] [--replace]` | GADM units only |
 | `run_worker [-c N] [--noreload]` | Celery worker (auto-reload in DEBUG) |
 | `requeue_runs [--stale N]` | re-queue runs stuck in `queued` (e.g. after Redis restarted); with `--stale`, also runs `running` for over N minutes |
@@ -233,8 +230,8 @@ Analysis tests run modules eagerly against small fixture datasets in a temp
   use `json_body(request)` to parse input.
 - **Migrations** for every schema change; data changes to reference tables go
   through `seed`, not migrations.
-- **New analysis**: add `modules/<id>/` (see `modules/README.md`), then
+- **New analysis**: add `analyses/<category>/<id>/` (see `analyses/README.md`), then
   `python manage.py sync_modules`.
-- **New reference data**: file in `seeds/data/`, loader command in its app, step
-  in `apps/core/management/commands/seed.py`.
+- **New reference data**: a folder in `REFERENCE_DATA_DIR` plus an entry in its `catalog.json`
+  (with a `load` block); loader command in its app.
 - Python style: PEP 8, 120-character lines, docstrings on modules and public functions.

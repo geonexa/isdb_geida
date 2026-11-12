@@ -1,0 +1,33 @@
+id: terrain
+version: 0.1.0
+title: Terrain — elevation and slope
+question: How high and how steep is the project area?
+description: >
+  Clips the Copernicus 30 m elevation model to the area of influence, derives slope,
+  and reports elevation bands and slope classes, overall and per administrative unit.
+  Useful for siting, road and canal alignment, irrigation and erosion risk.
+status: curated
+category: terrain
+themes: [infrastructure, transport, agriculture, water, energy, urban]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: copernicus_dem_30, label: Elevation}
+parameters:
+  - {name: slope_threshold_deg, type: number, default: 15, min: 1, max: 60, label: Steep slope threshold (degrees)}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: table, name: per_zone}
+  - {type: table, name: slope_classes}
+  - {type: table, name: elevation_bands}
+  - {type: image, name: elevation}
+  - {type: image, name: slope}
+  - {type: image, name: steep}
+steps:
+  - clip: dem
+  - slope: dem
+  - classify: [slope classes, elevation bands]
+  - zonal_stats: [elevation, slope, share steep]
+citations: [Copernicus DEM GLO-30]

@@ -8,6 +8,8 @@ conda activate geida
 python manage.py test                       # every app
 python manage.py test apps.analysis         # one app
 python manage.py test apps.analysis.tests_osm.RegionTests   # one test class
+python manage.py test analyses.infrastructure.buildings      # one analysis' own tests
+python manage.py check_analyses             # every analysis manifest, run(), datasets, docs
 python manage.py makemigrations --check --dry-run            # schema changes have migrations
 python manage.py check                      # Django system checks
 ```
@@ -21,6 +23,8 @@ python manage.py check                      # Django system checks
 | `apps/analysis/tests_osm.py` | OSM taxonomy, Geofabrik region choice, extracts, Overpass fallback |
 | `apps/analysis/tests_vector.py` | shapely helpers: zones, distances, lengths, equal-area projection |
 | `apps/analysis/tests_parked.py` | Parked raster modules (skipped without rasterio data) |
+| `apps/analysis/tests_framework.py` | Manifest schema, output check, area limits, `new_analysis`, `check_analyses`, `run_analysis` |
+| `analyses/<category>/<id>/tests/` | Each analysis' own tests (`AnalysisTestCase`), found by `manage.py test` |
 
 Tests need neither Redis nor network access: analyses run eagerly against small fixture
 datasets in a temporary `DATA_DIR`, and external services are mocked.

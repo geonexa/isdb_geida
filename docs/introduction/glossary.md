@@ -3,13 +3,13 @@
 | Term | Meaning |
 |---|---|
 | **AOI** | Area of interest; in GEIDA, a project's *area of influence* |
-| **Analysis module** | A self-contained analysis (`backend/modules/<id>/`): manifest plus script |
+| **Analysis module** | A self-contained analysis (`backend/analyses/<category>/<id>/`): manifest plus script |
 | **CRI** | IsDB Core Result Indicator: a standard indicator with a code (for example 9.3) used across projects |
 | **COG** | Cloud-optimised GeoTIFF: a raster file that can be read in parts over HTTP |
 | **Evidence** | A value proposed by an analysis run for an indicator, waiting for a person to accept or reject it |
 | **GADM** | Global Administrative Areas: the administrative-boundary dataset GEIDA uses (levels 0–3) |
 | **Geofabrik** | Provider of daily OpenStreetMap extracts per country; GEIDA's OSM source |
-| **GeoLibre** | Open-source (MIT) browser GIS that GEIDA includes as its Analytics workspace |
+| **GeoLibre** | Open-source (MIT) GIS that GEIDA includes as its Analytics workspace; its processing engine (`geolibre-cli.wasm`) also runs the project Toolbox on the server |
 | **Geospatial role** | How a result relates to an indicator: measure, estimate, verify, context or recorded |
 | **IMDT** | IsDB's IT department, future host of GEIDA |
 | **IsDB** | Islamic Development Bank |

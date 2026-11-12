@@ -1,0 +1,7 @@
+# Slope map colours (degrees). Values above max take the last colour.
+type: ramp
+palette: ["#FFFFCC", "#FEE692", "#FEBF5A", "#FD8D3C", "#F33C25", "#CA0922", "#800026"]
+min: 0
+max: 30
+unit: degrees
+open_max: true          # slopes steeper than max take the last colour

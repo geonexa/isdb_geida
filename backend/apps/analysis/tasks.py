@@ -4,7 +4,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from django.utils import timezone
 
 from .models import ModuleRun
-from .runner import execute
+from .core.runner import execute
 
 
 def claim(run_id, redelivered=False):

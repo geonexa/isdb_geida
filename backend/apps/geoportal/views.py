@@ -11,22 +11,19 @@ Data Catalog (Geo-Portal) API.
 import json
 import logging
 from urllib.parse import urlencode
-from pathlib import Path
 
-from django.conf import settings
 from django.contrib.gis.geos import GEOSException, GEOSGeometry
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from . import raster
-from .catalog import BASEMAPS, CATALOG, TOOLBOX
+from .catalog import BASEMAPS, CATALOG
 
 log = logging.getLogger(__name__)
 LAYERS = {l["id"]: l for g in CATALOG for l in g["layers"]}
 # The global Data Catalog page leaves out layers computed on the fly for project areas only.
 PORTAL_CATALOG = [{**g, "layers": [l for l in g["layers"] if not l.get("projects_only")]} for g in CATALOG]
 PORTAL_LAYERS = {l["id"]: l for g in PORTAL_CATALOG for l in g["layers"]}
-COUNTRIES_FILE = Path(settings.SEEDS_DIR) / "data" / "isdb_member_countries.geojson"
 _countries = None
 
 
@@ -34,14 +31,16 @@ def member_countries():
     """IsDB member countries [{iso, name}] sorted by name, read once from the boundary file."""
     global _countries
     if _countries is None:
+        from apps.reference.catalog import CatalogError, dataset_file
         try:
-            feats = json.loads(COUNTRIES_FILE.read_text(encoding="utf-8"))["features"]
+            path = dataset_file("member_countries")  # REFERENCE_DATA_DIR/catalog.json
+            feats = json.loads(path.read_text(encoding="utf-8"))["features"]
             _countries = sorted(
                 ({"iso": f["properties"].get("iso", ""), "name": f["properties"].get("name", "")} for f in feats),
                 key=lambda c: c["name"],
             )
-        except (OSError, ValueError, KeyError):
-            log.exception("Couldn't read %s", COUNTRIES_FILE)
+        except (OSError, ValueError, KeyError, CatalogError):
+            log.exception("Couldn't read the IsDB member countries")
             return []
     return _countries
 
@@ -68,20 +67,12 @@ def catalog_with_periods(catalog):
 
 @require_GET
 def config(request):
-    clippable = [
-        {"id": l["id"], "name": l["name"], "source": l["source"], "years": l.get("years") or [],
-         "year": l.get("year"), "scale": l.get("scale")}
-        for l in PORTAL_LAYERS.values() if l.get("cog") and not l.get("view_only")
-    ]
     return JsonResponse({
         "catalog": catalog_with_periods(PORTAL_CATALOG),
         "basemaps": BASEMAPS,
-        "toolbox": TOOLBOX,
-        "clippable": clippable,
         "countries": member_countries(),
         "live_count": sum(1 for l in PORTAL_LAYERS.values() if l["kind"] != "planned"),
         "total_count": len(PORTAL_LAYERS),
-        "tool_count": sum(len(g["tools"]) for g in TOOLBOX),
     })
 
 

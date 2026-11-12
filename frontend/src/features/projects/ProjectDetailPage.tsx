@@ -1,5 +1,5 @@
 import type * as maplibregl from "maplibre-gl";
-import { BadgeCheck, CheckCircle2, ChevronLeft, FileText, FlaskConical, History, LayoutDashboard, Pencil, Send, Target, Trash2, Undo2 } from "lucide-react";
+import { BadgeCheck, CheckCircle2, ChevronLeft, FileText, FlaskConical, History, LayoutDashboard, Pencil, Send, Target, Trash2, Undo2, Wrench } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -13,12 +13,14 @@ import { applyVectorOverride, loadStyles, saveStyles, type LayerStyles } from "@
 import { legendSwatches } from "@/features/projects/vectorStyle";
 import { label, StatusChip, useMeta, useProject, useSetProject } from "@/features/projects/data";
 import { ProjectMap } from "@/features/projects/ProjectMap";
-import type { Evidence, Project, RunOutput } from "@/features/projects/types";
-import { AnalysesTab } from "@/features/projects/workspace/AnalysesTab";
+import type { Evidence, PointPicker, Project, RunOutput } from "@/features/projects/types";
+import { AnalysesTab, type AnalysesView } from "@/features/projects/workspace/AnalysesTab";
 import { ACTIVE, fileUrl, STAGE_PHASE, useEvidence, useReviewEvidence, useRun, useRuns } from "@/features/projects/workspace/data";
 import { LayerPanel, TableDrawer } from "@/features/projects/workspace/MapOverlays";
 import { DataLayers, effectiveLegend, isVectorTiles, legendNumber, useSatelliteLayers, useSatelliteTiles, type SatState } from "@/features/projects/workspace/satellite";
 import type { TableOut } from "@/features/projects/workspace/RunParts";
+import { useToolResults } from "@/features/projects/workspace/toolResults";
+import { ToolboxView } from "@/features/toolbox/ToolboxView";
 import { ActivityTab, DocumentsTab, EvidenceTab, OverviewTab, ResultsTab } from "@/features/projects/workspace/Tabs";
 
 // The export composer (and GeoLibre's print engine behind it) loads on first use.
@@ -28,6 +30,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "results", label: "Results", icon: Target },
   { id: "analyses", label: "Analyses", icon: FlaskConical },
+  { id: "toolbox", label: "Toolbox", icon: Wrench },
   { id: "evidence", label: "Evidence", icon: BadgeCheck },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "activity", label: "Activity", icon: History },
@@ -70,7 +73,11 @@ function Workspace({ p, params, setParam, meta }: {
   // The old Data catalog tab now lives in Analyses (?tab=analyses&view=data).
   const tabParam = params.get("tab") === "satellite" ? "analyses" : params.get("tab");
   const tab = (TABS.some((t) => t.id === tabParam) ? tabParam : "overview") as TabId;
-  const view = params.get("tab") === "satellite" || params.get("view") === "data" ? "data" : "modules";
+  const viewParam = params.get("view");
+  const view: AnalysesView = params.get("tab") === "satellite" || viewParam === "data" ? "data" : "modules";
+  // The toolbox stays mounted once opened (engine, inputs and run history survive tab changes).
+  const [toolboxSeen, setToolboxSeen] = useState(tab === "toolbox");
+  if (tab === "toolbox" && !toolboxSeen) setToolboxSeen(true);
   const phase = params.get("phase") ?? STAGE_PHASE[p.stage] ?? "preparation";
   const runId = params.get("run") ? Number(params.get("run")) : null;
   const run = useRun(runId).data;
@@ -80,7 +87,12 @@ function Workspace({ p, params, setParam, meta }: {
   const [table, setTable] = useState<TableOut | null>(null);
   const [mapRef, setMapRef] = useState<maplibregl.Map | null>(null);
   const [printing, setPrinting] = useState(false);
+  // Point parameters in a run form: map clicks go to the form while it is open; its point is drawn as a marker.
+  const [pickMarker, setPickMarker] = useState<[number, number] | null>(null);
+  const [onPick, setOnPick] = useState<((ll: [number, number]) => void) | null>(null);
+  const picker = useMemo<PointPicker>(() => ({ start: (fn) => setOnPick(() => fn), stop: () => setOnPick(null), show: setPickMarker }), []);
   const [sat, setSat] = useState<SatState>({});
+  const tools = useToolResults();
   const [styles, setStyles] = useState<LayerStyles>(() => loadStyles(p.code));
   useEffect(() => saveStyles(p.code, styles), [p.code, styles]);
   const satGroups = useSatelliteLayers(p.code, !!p.area).data ?? [];
@@ -114,11 +126,16 @@ function Workspace({ p, params, setParam, meta }: {
 
   // Map overlays from the open run. Rasters: the first one is on by default, the rest off.
   const outs = run?.status === "done" ? run.outputs ?? [] : [];
-  const imgs = outs.filter((o): o is Extract<RunOutput, { type: "image" }> => o.type === "image");
+  // Raster results show on the map like image outputs (their PNG preview and legend).
+  const imgs = outs.filter((o): o is Extract<RunOutput, { type: "image" | "raster" }> => o.type === "image" || o.type === "raster");
   const vecs = outs.filter((o): o is Extract<RunOutput, { type: "vector" }> => o.type === "vector");
   const isHidden = (name: string) => hidden.has(name) !== (imgs.findIndex((o) => o.name === name) > 0);
   const toggle = (name: string) => setHidden((h) => { const n = new Set(h); n.has(name) ? n.delete(name) : n.add(name); return n; });
-  const images = useMemo(() => imgs.filter((o) => !isHidden(o.name)).map((o) => ({ id: `${run!.id}-${o.name}`, url: fileUrl(run!.id, o.file), bounds: o.bounds, opacity: styles.images[o.name]?.opacity })), [run, hidden, styles.images]);
+  const runImages = useMemo(() => imgs.filter((o) => !isHidden(o.name)).map((o) => ({ id: `${run!.id}-${o.name}`, url: fileUrl(run!.id, o.file), bounds: o.bounds, opacity: styles.images[o.name]?.opacity })), [run, hidden, styles.images]);
+  // Toolbox results join the analysis outputs on the map (newest on top).
+  const toolImages = tools.layers.filter((l) => l.kind === "raster" && l.visible && l.bounds).map((l) => ({ id: `tool-${l.id}`, url: l.url, bounds: l.bounds!, opacity: l.opacity }));
+  const toolVectors = tools.layers.filter((l) => l.kind === "vector" && l.visible).map((l) => ({ id: `tool-${l.id.replace(":", "-")}`, url: l.url, title: l.name, style: { color: l.color, outline: l.color, opacity: l.opacity * 0.35, lineOpacity: l.opacity, width: 2, radius: 5 } }));
+  const images = [...toolImages, ...runImages];
   const vectors = useMemo(() => vecs.filter((o) => !isHidden(o.name)).map((o) => ({ id: `${run!.id}-${o.name}`, url: fileUrl(run!.id, o.file), style: applyVectorOverride(o.style, styles.vectors[o.name]), title: o.title })), [run, hidden, styles.vectors]);
   const hiddenNow = new Set([...imgs, ...vecs].map((o) => o.name).filter(isHidden));
 
@@ -152,6 +169,10 @@ function Workspace({ p, params, setParam, meta }: {
   const legend = [
     ...(showArea && p.area ? [{ id: "area", name: "Area of influence", swatches: [{ color: styles.area.color }] }] : []),
     ...satLegend,
+    ...tools.layers.filter((l) => l.visible).map((l) => ({
+      id: l.id, name: l.name,
+      swatches: l.legend.length ? l.legend.slice(0, 12).map((it) => ({ color: it.color, label: it.label })) : [{ color: l.color ?? "#1f77b4" }],
+    })),
     ...imgs.filter((o) => !isHidden(o.name)).map((o) => ({ id: `img-${o.name}`, name: o.title, swatches: o.legend.map((l) => ({ color: l.color, label: l.label })) })),
     ...vecs.filter((o) => !isHidden(o.name)).map((o) => ({ id: `vec-${o.name}`, name: o.title, swatches: legendSwatches(applyVectorOverride(o.style, styles.vectors[o.name])) })),
   ];
@@ -194,12 +215,20 @@ function Workspace({ p, params, setParam, meta }: {
           {tab === "analyses" && (p.area ? (
             <AnalysesTab project={p} meta={meta} phase={phase} setPhase={(v) => setParam({ phase: v })}
               query={params.get("q") ?? ""} setQuery={(v) => setParam({ q: v })}
-              runId={runId} openRun={openRun} onReview={review} onOpenTable={setTable}
-              view={view} setView={(v) => setParam({ view: v === "data" ? "data" : null, ...(params.get("tab") === "satellite" ? { tab: "analyses" } : {}) })}
+              runId={runId} openRun={openRun} onReview={review} onOpenTable={setTable} picker={picker}
+              view={view} setView={(v) => setParam({ view: v === "modules" ? null : v, ...(params.get("tab") === "satellite" ? { tab: "analyses" } : {}) })}
               dataCount={Object.keys(sat).length}
+
               dataLayers={satGroups.length === 0 ? <p className="muted">Loading the data layers…</p>
                 : <DataLayers code={p.code} groups={satGroups} on={sat} setOn={setSat} errors={satErrors} loading={satLoading} phase={phase} />} />
           ) : <p className="muted">Analyses and data layers need an area of influence. {p.permissions.can_edit && <Link className="text-link" to={`/projects/${p.code}/edit`}>Add one</Link>}</p>)}
+          {tab === "toolbox" && !p.area && <p className="muted">The toolbox works on the area of influence. {p.permissions.can_edit && <Link className="text-link" to={`/projects/${p.code}/edit`}>Add one</Link>}</p>}
+          {toolboxSeen && p.area && (
+            <div hidden={tab !== "toolbox"}>
+              <ToolboxView code={p.code} canRun={p.permissions.can_edit || p.permissions.can_review} shown={tools.layers}
+                onShow={tools.add} onHide={tools.remove} onRunDeleted={tools.removeRun} />
+            </div>
+          )}
           {tab === "evidence" && <EvidenceTab items={evidence.data ?? []} meta={meta} canReview={canReview} onReview={review} onOpenRun={(id) => openRun(id)} />}
           {tab === "documents" && <DocumentsTab p={p} meta={meta} />}
           {tab === "activity" && <ActivityTab p={p} />}
@@ -207,9 +236,11 @@ function Workspace({ p, params, setParam, meta }: {
         </aside>
 
         <div className="pw-map">
-          <ProjectMap area={showArea ? p.area?.geometry ?? null : null} fitBbox={fit} images={images} vectors={vectors} rasters={rasters} vectorTiles={vectorTiles} areaStyle={styles.area} basemapVisible={styles.basemap.visible} background={styles.basemap.background} onRastersLoading={setTilesLoading} onMap={setMapRef} onExport={() => setPrinting(true)}>
+          <ProjectMap area={showArea ? p.area?.geometry ?? null : null} fitBbox={fit} images={images} vectors={[...toolVectors, ...vectors]} rasters={rasters} vectorTiles={vectorTiles} areaStyle={styles.area} onRastersLoading={setTilesLoading}
+            marker={pickMarker} onMapClick={onPick ?? undefined} cursor={onPick ? "crosshair" : ""} onMap={setMapRef} onExport={() => setPrinting(true)}>
             <LayerPanel showArea={showArea} onToggleArea={() => setShowArea((v) => !v)} run={run} hidden={hiddenNow} onToggle={toggle} onClearRun={() => openRun(null)}
-              styles={styles} setStyles={setStyles} satLayers={satLayers.filter((l) => sat[l.id])} sat={sat} setSat={setSat} satLoading={satLoading} />
+              styles={styles} setStyles={setStyles} satLayers={satLayers.filter((l) => sat[l.id])} sat={sat} setSat={setSat} satLoading={satLoading}
+              tools={tools.layers} onToolPatch={tools.patch} onToolRemove={tools.remove} />
             {table && <TableDrawer table={table} onClose={() => setTable(null)} />}
           </ProjectMap>
           {printing && mapRef && (

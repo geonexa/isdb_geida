@@ -8,12 +8,13 @@ CRI codes are data, not code: re-running updates existing rows by code.
 import csv
 from pathlib import Path
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.projects.models import CRI
 
-DEFAULT = Path(settings.SEEDS_DIR) / "data" / "isdb_cri_2025_seed.csv"
+def _default():
+    from apps.reference.catalog import dataset_file
+    return dataset_file("cri")  # REFERENCE_DATA_DIR/catalog.json; normally run through `manage.py seed`
 
 
 def _sort_key(code):
@@ -25,10 +26,10 @@ class Command(BaseCommand):
     help = "Load the IsDB CRI library from the seed CSV."
 
     def add_arguments(self, parser):
-        parser.add_argument("path", nargs="?", default=str(DEFAULT))
+        parser.add_argument("path", nargs="?", default="")
 
     def handle(self, *args, path, **opts):
-        p = Path(path)
+        p = Path(path) if path else _default()
         if not p.exists():
             raise CommandError(f"File not found: {p}")
         created = updated = 0

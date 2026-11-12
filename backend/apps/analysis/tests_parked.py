@@ -21,8 +21,8 @@ try:
 except ImportError:  # pragma: no cover
     rasterio = None
 
-from apps.analysis import raster
-from apps.analysis.models import Evidence, ModuleRun
+from apps.analysis.ops import raster
+from apps.analysis.models import ModuleRun
 from apps.projects.models import Indicator, Project, ProjectArea
 
 TMP = Path(tempfile.mkdtemp(prefix="geida-test-"))
@@ -45,7 +45,6 @@ def make_data():
     dx_m = RES * raster.EARTH_M_PER_DEG * math.cos(math.radians(2.25))
     _tif(ds / "copernicus_dem_30" / "UGA.tif", (1000 + xx * dx_m * 0.1).astype("float32"))  # 10% eastward rise
     _tif(ds / "esa_worldcover_2021" / "UGA.tif", np.where(xx < w // 2, 40, 30).astype("uint8"), 0)
-    _tif(ds / "worldpop_2020" / "UGA.tif", np.ones((h, w), dtype="float32"), -99999)
     (ds / "osm_schools").mkdir(parents=True, exist_ok=True)
     (ds / "osm_schools" / "UGA.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [34.25, 2.25]}, "properties": {"name": "A"}}]}))
@@ -57,7 +56,7 @@ def make_data():
 
 @unittest.skipIf(rasterio is None, "rasterio is not installed")
 @override_settings(DATA_DIR=TMP, MEDIA_ROOT=TMP / "media", CELERY_TASK_ALWAYS_EAGER=True,
-                   MODULES_DIR=Path(settings.MODULES_DIR) / "_parked")
+                   ANALYSES_DIR=Path(settings.ANALYSES_DIR) / "_parked")
 class ParkedRasterModuleTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -86,39 +85,6 @@ class ParkedRasterModuleTests(TestCase):
 
     def metric(self, run, name):
         return next(o for o in run.outputs if o["name"] == name)["value"]
-
-    def test_modules_listed_with_availability(self):
-        d = self.client.get("/api/analysis/modules/?project=UGA1072").json()
-        ids = {m["id"]: m for m in d["modules"]}
-        self.assertEqual(ids["school_access"]["availability"]["status"], "ready")
-        self.assertEqual(ids["school_access"]["cri_in_project"], ["9.1"])
-        self.assertEqual(d["modules"][0]["id"], "school_access")  # CRI match first
-
-    def test_area_baseline_slope_and_totals(self):
-        run = self.start("area_baseline", {"slope_threshold_deg": 15, "zone_level": 2})
-        self.assertAlmostEqual(self.metric(run, "mean_slope"), math.degrees(math.atan(0.1)), delta=0.2)
-        self.assertEqual(self.metric(run, "steep_share"), 0)
-        lc = next(o for o in run.outputs if o["name"] == "landcover")["rows"]
-        self.assertEqual({r["class"] for r in lc}, {"Cropland", "Grassland"})
-        self.assertAlmostEqual(self.metric(run, "population"), 500 * 500, delta=2000)
-
-    def test_school_access_distance_and_evidence(self):
-        run = self.start("school_access", {"threshold_m": 5000, "zone_level": 3})
-        # One school in the middle of a 500x500-cell box of 1 person per cell:
-        # people within 5 km ≈ cells inside a circle of radius 5 km.
-        cell = (RES * raster.EARTH_M_PER_DEG) ** 2 * math.cos(math.radians(2.25))
-        expected_within = math.pi * 5000 ** 2 / cell
-        within = 250_000 - self.metric(run, "beyond")
-        self.assertAlmostEqual(within, expected_within, delta=expected_within * 0.03)
-        ev = Evidence.objects.filter(run=run).order_by("cri_code")
-        self.assertEqual([e.cri_code for e in ev], ["9.1", "9.3"])
-        self.assertIsNotNone(ev[0].indicator)
-        self.assertEqual(ev[0].status, "proposed")
-        r = self.client.post(f"/api/analysis/evidence/{ev[0].id}/accept/")
-        self.assertEqual(r.json()["evidence"]["status"], "accepted")
-        f = next(o for o in run.outputs if o["type"] == "image")["file"]
-        self.assertEqual(self.client.get(f"/api/analysis/runs/{run.id}/files/{f}").status_code, 200)
-        self.assertEqual(self.client.get(f"/api/analysis/runs/{run.id}/files/../../x").status_code, 404)
 
     def test_terrain(self):
         run = self.start("terrain", {"slope_threshold_deg": 15, "zone_level": 2})

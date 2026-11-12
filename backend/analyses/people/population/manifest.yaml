@@ -1,0 +1,48 @@
+id: population
+version: 0.2.0
+title: Population and density
+question: How many people live in the area, where, and per admin unit?
+description: >
+  Counts the residents of the area of influence for a chosen year: WorldPop (100 m, every year
+  2015–2030, with age and sex) by default, or the GHSL population grid (100 m, every five years
+  1975–2030). Reports total population and density, people and land by density class, the same
+  per administrative unit, a map of people per cell and, with WorldPop, the age and sex structure
+  (children under 5, school age, women 15–49, 65 and over, the age pyramid) for the area and
+  each unit.
+status: experimental
+category: people
+themes: [social, health, education, water, energy, urban]
+phases: [preparation, completion]
+cri: []
+inputs:
+  required:
+    - {name: population, type: raster, default: worldpop, label: "Population (WorldPop R2025A, 100 m)"}
+parameters:
+  - {name: population_dataset, type: choice, default: worldpop, label: Population data,
+     choices: [{value: worldpop, label: "WorldPop (yearly 2015–2030, with age and sex)"},
+               {value: ghsl_pop, label: "GHSL (every 5 years, 1975–2030)"}]}
+  - {name: year, type: number, default: 2025, min: 1975, max: 2030, label: Year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: total_population}
+  - {type: metric, name: density}
+  - {type: metric, name: dense_share}
+  - {type: metric, name: under5, optional: true}
+  - {type: table, name: density_classes}
+  - {type: table, name: per_zone}
+  - {type: table, name: age_groups, optional: true}
+  - {type: table, name: age_pyramid, optional: true}
+  - {type: raster, name: population}
+requires: [gdal]
+limits: {max_area_km2: 100000}
+queue: raster
+runtime: under a minute
+citations: ["WorldPop Global2 R2025A v1 (University of Southampton), DOI 10.5258/SOTON/WP00839, WP00841, CC BY 4.0",
+            "GHS-POP R2023A, GHSL Data Package 2023, European Commission JRC (Schiavina et al. 2023), CC BY 4.0"]
+steps:
+  - read: WorldPop for the year (API, cut to the area) or GHS-POP for the nearest epoch, warped to the area's UTM grid with sum resampling (totals kept), GHSL if WorldPop is unavailable or the year is before 2015
+  - age_sex: WorldPop API groups and age pyramid for the area (/groups, /agesex) and each admin unit (/batch)
+  - totals: people inside the area (cell centres), density per km²
+  - classes: people and land per density class (density of the 1 km block around each cell, people per km²)
+  - per_zone: population, area, density and share of the area's people per admin unit

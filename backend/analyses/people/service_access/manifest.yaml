@@ -1,0 +1,52 @@
+id: service_access
+version: 0.2.0
+title: Access to services
+question: How many people live within reach of schools, clinics, markets, water points and roads?
+description: >
+  Measures the straight-line distance from every 100 m cell to the nearest school, health facility,
+  market, water point or road (OpenStreetMap) and counts the people (WorldPop, everyone or an age / sex group) at each distance:
+  the share of people within a chosen distance, people beyond it, the population-weighted mean
+  distance, people per distance band, the same per administrative unit, and a distance map.
+status: experimental
+category: people
+themes: [education, health, water, transport, social]
+phases: [preparation, completion]
+cri: []
+inputs:
+  required:
+    - {name: population, type: raster, default: worldpop, label: "Population (WorldPop R2025A, 100 m)"}
+    - {name: facilities, type: vector_point, default: osm_schools, label: Service locations (OpenStreetMap)}
+parameters:
+  - {name: facilities_dataset, type: choice, default: osm_schools, label: Service,
+     choices: [{value: osm_schools, label: Schools}, {value: osm_health, label: Health facilities},
+               {value: osm_markets, label: Markets}, {value: osm_water_points, label: Water points}, {value: osm_roads, label: Roads}]}
+  - {name: threshold_km, type: number, default: 2, min: 0.5, max: 30, label: Within (km)}
+  - {name: population_dataset, type: choice, default: worldpop, label: People counted,
+     choices: [{value: worldpop, label: "Everyone (WorldPop)"}, {value: worldpop_age_5_14, label: "School-age children 5–14 (WorldPop)"},
+               {value: worldpop_under_5, label: "Children under 5 (WorldPop)"}, {value: worldpop_women_15_49, label: "Women 15–49 (WorldPop)"},
+               {value: worldpop_age_65_plus, label: "People 65 and over (WorldPop)"}, {value: ghsl_pop, label: "Everyone (GHSL)"}]}
+  - {name: year, type: number, default: 2025, min: 2015, max: 2030, label: Year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: within_share}
+  - {type: metric, name: people_beyond}
+  - {type: metric, name: mean_distance}
+  - {type: metric, name: facilities}
+  - {type: table, name: bands}
+  - {type: table, name: per_zone}
+  - {type: raster, name: distance}
+requires: [gdal]
+limits: {max_area_km2: 50000}
+queue: raster
+runtime: under two minutes for 10,000 km²
+citations: ["WorldPop Global2 R2025A v1 (University of Southampton), DOI 10.5258/SOTON/WP00839, WP00841, CC BY 4.0",
+            "GHS-POP R2023A, GHSL Data Package 2023, European Commission JRC, CC BY 4.0", "© OpenStreetMap contributors (ODbL)"]
+steps:
+  - read: WorldPop (100 m, everyone or an age / sex group; GHSL as fallback) over the area plus 10 km, and the service locations over the same box (OSM)
+  - distance: straight-line distance from each cell centre to the nearest location (Euclidean distance transform)
+  - bands: people within 1, 2, 5, 10 km and beyond; share within the chosen distance; population-weighted mean distance
+  - per_zone: the same per admin unit
+acceptance: >
+  Straight-line distance understates real travel (terrain, rivers, roads); use Travel time for
+  that. OSM completeness varies: a missing school makes people look farther than they are.

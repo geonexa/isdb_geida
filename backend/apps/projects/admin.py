@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
 
-from .models import CRI, Indicator, Project, ProjectArea, ProjectDocument, ProjectLog
+from .models import CRI, Indicator, MapLayout, MapSettings, MapTemplate, Project, ProjectArea, ProjectDocument, ProjectLog
 
 
 class IndicatorInline(admin.TabularInline):
@@ -39,3 +39,18 @@ class CRIAdmin(admin.ModelAdmin):
 class ProjectLogAdmin(admin.ModelAdmin):
     list_display = ("project", "action", "user", "created")
     list_filter = ("action",)
+
+
+@admin.register(MapTemplate)
+class MapTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "user", "saved")
+    search_fields = ("name", "user__email")
+
+
+@admin.register(MapLayout)
+class MapLayoutAdmin(admin.ModelAdmin):
+    list_display = ("project", "user", "updated")
+    search_fields = ("project__code", "user__email")
+
+
+admin.site.register(MapSettings)

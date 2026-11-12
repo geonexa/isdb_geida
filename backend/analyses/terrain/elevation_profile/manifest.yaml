@@ -1,0 +1,39 @@
+# Elevation profile: manifest. Schema and field reference: apps/analysis/core/manifest.py and analyses/README.md.
+id: elevation_profile
+version: 0.1.1
+title: Elevation profile
+question: What are the lowest, highest and mean elevations, and how is the land distributed by height?
+description: >
+  Reads the Copernicus 30 m elevation model over the area of influence, reports the lowest,
+  highest and mean elevation, the area in each elevation band (hypsometry) and the elevation
+  range per administrative unit, and maps the elevation.
+status: experimental
+category: terrain
+themes: [water, agriculture, infrastructure, energy]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: bands, type: number, default: 8, min: 3, max: 20, label: Number of elevation bands}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: min_elevation}
+  - {type: metric, name: mean_elevation}
+  - {type: metric, name: max_elevation}
+  - {type: table, name: bands}
+  - {type: table, name: per_zone}
+  - {type: raster, name: elevation}
+requires: [gdal]
+limits: {max_area_km2: 60000}
+queue: raster
+runtime: under a minute for 10,000 km²
+citations: [Copernicus DEM GLO-30 (ESA)]
+steps:
+  - read: dem clipped to the area, local UTM zone
+  - mask: area of influence
+  - stats: min, mean, max
+  - bands: equal intervals between min and max, area per band
+  - per_zone: min, mean, max per admin unit

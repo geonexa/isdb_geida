@@ -1,0 +1,38 @@
+id: sub_basins
+version: 0.1.0
+title: Sub-catchments in the area
+question: Which drainage units does the area split into, how large and steep are they, and where does water leave the area?
+description: >
+  Splits the area into sub-catchments from the Copernicus 30 m elevation model with WhiteboxTools:
+  each unit drains to one point where streams of at least the chosen upstream area meet (very small
+  units are merged downstream). Reports each unit's area, slope, elevation range and the area it
+  drains at its outlet, the points where streams leave the area with the land draining through
+  them, and maps the units and exit points.
+status: experimental
+category: water
+themes: [water, agriculture, environment, transport]
+phases: [preparation]
+cri: []
+inputs:
+  required:
+    - {name: dem, type: raster, default: elevation, label: Elevation (Copernicus DEM GLO-30)}
+parameters:
+  - {name: min_area_km2, type: number, default: 25, min: 1, max: 2000, label: Sub-catchments from upstream area (km²)}
+outputs:
+  - {type: metric, name: unit_count}
+  - {type: metric, name: median_km2}
+  - {type: metric, name: main_exit_km2}
+  - {type: table, name: units}
+  - {type: table, name: exits}
+  - {type: vector, name: sub_basins}
+  - {type: vector, name: exit_points}
+requires: [gdal, whitebox]
+limits: {max_area_km2: 20000}
+queue: heavy
+runtime: under a minute for 10,000 km²
+citations: ["Copernicus DEM GLO-30 (ESA)", "WhiteboxTools (Lindsay 2016), University of Guelph, MIT licence"]
+steps:
+  - read: Copernicus DEM with a 5 km margin, local UTM zone, 30 m; conditioned DEM and D8 flow shared with the other hydrology analyses (cached)
+  - streams: cells draining at least the chosen area
+  - units: WhiteboxTools Subbasins (one unit per stream link, split at confluences); units under a fifth of the chosen area merged into the unit downstream
+  - summary: per unit inside the area, area, mean slope, elevation range, drained area at the outlet; exit points where streams leave the area

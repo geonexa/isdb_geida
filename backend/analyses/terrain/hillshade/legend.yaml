@@ -1,0 +1,6 @@
+# Shaded relief: 0 = in shadow, 255 = facing the sun.
+type: ramp
+palette: ["#000000", "#555555", "#AAAAAA", "#FFFFFF"]
+min: 0
+max: 255
+unit: ""

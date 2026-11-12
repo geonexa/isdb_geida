@@ -5,31 +5,34 @@ import { applyVectorOverride, type LayerStyles, type VectorOverride } from "@/fe
 import type { Run, RunOutput, VectorStyle } from "@/features/projects/types";
 import { legendSwatches } from "@/features/projects/vectorStyle";
 import type { TableOut } from "@/features/projects/workspace/RunParts";
+import { downloadToolLayer, type ToolLayer } from "@/features/projects/workspace/toolResults";
 import { fmtNum } from "@/features/projects/workspace/data";
 import { effectiveLegend, isVectorTiles, SatLegendView, toggleSat, type SatLayer, type SatState } from "@/features/projects/workspace/satellite";
 import { cssGradient, PALETTES } from "@/shared/map/palettes";
 
-type ImageOut = Extract<RunOutput, { type: "image" }>;
+type ImageOut = Extract<RunOutput, { type: "image" | "raster" }>;
 type VectorOut = Extract<RunOutput, { type: "vector" }>;
 
 /**
- * Floating layer list on the map: basemap, area of influence, data layers and the open
+ * Floating layer list on the map: area of influence, data layers and the open
  * run's outputs, each with its legend and display settings (opacity, colours, palette,
  * value range, size). Settings are kept per project in the browser.
  */
-export function LayerPanel({ showArea, onToggleArea, run, hidden, onToggle, onClearRun, styles, setStyles, satLayers, sat, setSat, satLoading }: {
+export function LayerPanel({ showArea, onToggleArea, run, hidden, onToggle, onClearRun, styles, setStyles, satLayers, sat, setSat, satLoading, tools, onToolPatch, onToolRemove }: {
   showArea: boolean; onToggleArea: () => void;
   run?: Run; hidden: Set<string>; onToggle: (name: string) => void; onClearRun: () => void;
   styles: LayerStyles; setStyles: (s: LayerStyles) => void;
   /** Data layers switched on (in panel order) and their state. */
   satLayers: SatLayer[]; sat: SatState; setSat: (s: SatState) => void; satLoading: Set<string>;
+  /** Toolbox results switched on for the map (saved on the server; shown this visit). */
+  tools: ToolLayer[]; onToolPatch: (id: string, p: Partial<ToolLayer>) => void; onToolRemove: (id: string) => void;
 }) {
   const [open, setOpen] = useState(() => typeof window === "undefined" || window.matchMedia("(min-width: 901px)").matches);
   const [editing, setEditing] = useState<string | null>(null);
   const outs = run?.status === "done" ? run.outputs ?? [] : [];
-  const images = outs.filter((o) => o.type === "image") as ImageOut[];
+  const images = outs.filter((o) => o.type === "image" || o.type === "raster") as ImageOut[];
   const vectors = outs.filter((o) => o.type === "vector") as VectorOut[];
-  const count = 1 + images.length + vectors.length + satLayers.length;
+  const count = 1 + images.length + vectors.length + satLayers.length + tools.length;
   const edit = (id: string) => setEditing(editing === id ? null : id);
   const vecOv = (name: string, p: Partial<VectorOverride> | null) =>
     setStyles({ ...styles, vectors: { ...styles.vectors, [name]: p ? { ...styles.vectors[name], ...p } : {} } });
@@ -42,6 +45,35 @@ export function LayerPanel({ showArea, onToggleArea, run, hidden, onToggle, onCl
       </button>
       {open && (
         <div className="pw-layers-body">
+          {tools.length > 0 && (
+            <div className="pw-layer-group">
+              <div className="pw-layer-group-head"><span>Toolbox results</span></div>
+              {tools.map((l) => {
+                const id = `tool:${l.id}`;
+                return (
+                  <div key={l.id}>
+                    <div className="pw-layer">
+                      <input type="checkbox" checked={l.visible} onChange={() => onToolPatch(l.id, { visible: !l.visible })} aria-label={`Show ${l.name}`} />
+                      <span className="pw-layer-name" title={`${l.name}\n${l.source}`}>{l.name}</span>
+                      <StyleBtn active={editing === id} onClick={() => edit(id)} />
+                      <button type="button" className="icon-btn icon-btn-xs" aria-label={`Download ${l.name}`} title={`Download (${l.downloadLabel})`} onClick={() => downloadToolLayer(l)}><Download aria-hidden="true" /></button>
+                      <button type="button" className="icon-btn icon-btn-xs" aria-label={`Remove ${l.name}`} title="Remove from map" onClick={() => onToolRemove(l.id)}><X aria-hidden="true" /></button>
+                    </div>
+                    {editing === id && (
+                      <div className="pw-style">
+                        <Opacity value={l.opacity} onChange={(opacity) => onToolPatch(l.id, { opacity })} />
+                      </div>
+                    )}
+                    {l.visible && l.legend.length > 0 && (
+                      <ul className="pw-tool-legend">{l.legend.slice(0, 12).map((it, i) => (
+                        <li key={i}><i style={{ background: it.color }} />{it.label}</li>
+                      ))}</ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {/* Analysis outputs on top, as on the map */}
           {run && (images.length > 0 || vectors.length > 0) && (
             <div className="pw-layer-group">
@@ -119,16 +151,7 @@ export function LayerPanel({ showArea, onToggleArea, run, hidden, onToggle, onCl
                 <Opacity label="Fill" value={styles.area.fillOpacity} min={0} onChange={(fillOpacity) => setStyles({ ...styles, area: { ...styles.area, fillOpacity } })} />
               </div>
             )}
-            <LayerRow checked={styles.basemap.visible} onCheck={() => setStyles({ ...styles, basemap: { ...styles.basemap, visible: !styles.basemap.visible } })}
-              editing={editing === "base"} onEdit={() => edit("base")} swatch={<i className="sw" style={{ background: styles.basemap.background }} />} label="Basemap" />
-            {editing === "base" && (
-              <div className="pw-style">
-                <ColorRow label="Background" value={styles.basemap.background} onChange={(background) => setStyles({ ...styles, basemap: { ...styles.basemap, background } })} />
-                <p className="muted pw-style-note">Shown where the basemap is off or has no tiles. Pick the basemap with the button at the bottom left.</p>
-              </div>
-            )}
           </div>
-          {!run && satLayers.length === 0 && <p className="muted small pw-layer-note">Run an analysis or switch on a data layer (Analyses tab) to add layers.</p>}
         </div>
       )}
     </div>

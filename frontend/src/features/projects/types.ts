@@ -141,7 +141,17 @@ export type ImportRow = {
 
 // Analysis modules (/api/analysis/)
 export type DatasetInfo = { id: string; title: string; kind: string; resolution: string; version: string; reference_date: string; citation: string; licence: string };
-export type ModuleParam = { name: string; type: "number" | "choice"; default: number | string; label: string; min?: number; max?: number; choices?: { value: number | string; label: string }[] };
+/** point: [lon, lat], picked on the project map in the run form (default null = the user must pick). */
+export type ModuleParam = {
+  name: string; type: "number" | "choice" | "point" | "criteria"; default: number | string | [number, number] | Criterion[] | null; label: string;
+  min?: number; max?: number; choices?: { value: number | string; label: string }[];
+  /** criteria: the layers conditions can use. */
+  layers?: CriteriaLayer[];
+};
+/** A layer a site-suitability condition can test: a range of values or classes. */
+export type CriteriaLayer = { id: string; label: string; kind: "range" | "classes"; unit?: string; group?: string; classes?: { value: number | string; label: string }[] };
+/** One condition: limits (range) or classes, a weight, and whether failing it excludes the land. */
+export type Criterion = { layer: string; min?: number | null; max?: number | null; classes?: (number | string)[]; weight: number; must: boolean };
 /** How a run's vector output is drawn (see backend/modules/README.md, "Vector styles"). */
 export type VectorStyle = {
   color?: string; radius?: number; width?: number; opacity?: number;
@@ -151,10 +161,12 @@ export type VectorStyle = {
   classes?: { value: string | number; color: string; label: string; radius?: number; width?: number }[];
   steps?: { from: number; color: string; label: string }[];
 };
-export type ModuleCategory = { id: string; title: string; description: string; icon: string; order: number; modules: number };
+export type ModuleCategory = { id: string; title: string; description: string; icon: string; order: number; modules: number; planned?: number };
+/** An analysis in the catalogue plan, not built yet (backend/modules/planned.yaml). */
+export type PlannedAnalysis = { id: string; title: string; question: string; category: string; phases: string[] };
 export type ModuleInfo = {
   id: string; version: string; title: string; question: string; description: string; status: string; category: string;
-  themes: string[]; phases: string[]; cri: { code: string; role: string }[];
+  themes: string[]; phases: string[]; cri: { code: string; role: string; name?: string; unit?: string }[];
   inputs: { name: string; required: boolean; label: string; type: string; dataset: DatasetInfo | null }[];
   parameters: ModuleParam[]; citations: string[];
   availability?: { status: "ready" | "needs_data" | "not_available"; reasons: string[] };
@@ -164,6 +176,10 @@ export type RunOutput =
   | { type: "metric"; name: string; title: string; value: number | string; unit: string; note?: string }
   | { type: "table"; name: string; title: string; columns: { key: string; label: string; unit?: string }[]; rows: Record<string, string | number>[]; note?: string }
   | { type: "image"; name: string; title: string; file: string; bounds: [number, number, number, number]; legend: { label: string; color: string }[] }
+  /** Raster result: map preview (file, PNG), values as a cloud-optimised GeoTIFF (data_file), legend and statistics. */
+  | { type: "raster"; name: string; title: string; file: string; data_file: string; bounds: [number, number, number, number];
+      legend: { label: string; color: string }[]; unit?: string; resolution_m?: number;
+      stats?: { count: number; min: number | null; max: number | null; mean: number | null } }
   | { type: "vector"; name: string; title: string; file: string; style: VectorStyle }
   | { type: "file"; name: string; title: string; file: string };
 export type Evidence = {
@@ -177,4 +193,9 @@ export type Run = {
   params: Record<string, unknown>; status: "queued" | "running" | "done" | "failed" | "cancelled"; progress: number; error: string;
   created: string; started: string | null; finished: string | null; created_by: string; summary: string;
   outputs?: RunOutput[]; datasets?: DatasetInfo[]; log?: string; evidence?: Evidence[];
+  /** The current user may delete it (their run, or a reviewer; finished; no accepted evidence). */
+  can_delete?: boolean; size_bytes?: number;
 };
+
+/** Lets a run form pick a point on the project map: clicks go to onPick while picking; show() draws the marker. */
+export type PointPicker = { start: (onPick: (lngLat: [number, number]) => void) => void; stop: () => void; show: (lngLat: [number, number] | null) => void };

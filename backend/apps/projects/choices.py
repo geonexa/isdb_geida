@@ -106,7 +106,8 @@ ISO2_TO_ISO3 = {
 @lru_cache(maxsize=1)
 def member_countries():
     """IsDB member countries: [{iso3, iso2, name, bbox}], sorted by name."""
-    path = settings.SEEDS_DIR / "data" / "isdb_member_countries.geojson"
+    from apps.reference.catalog import dataset_file
+    path = dataset_file("member_countries")  # REFERENCE_DATA_DIR/catalog.json
     data = json.loads(path.read_text(encoding="utf-8"))
     out = []
     for f in data["features"]:

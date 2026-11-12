@@ -2,7 +2,7 @@
  * GEIDA Geo-Portal engine: OpenLayers map, layer catalogue, basemaps, area tools and
  * saved project areas. Ported from the Django version (static/js/geoportal.js).
  * The React page renders the markup; initGeoportal() wires it up and returns
- * { G, destroy }. G is the interface the Toolbox uses.
+ * { destroy }. (Processing tools live in the project's Analyses tab: features/toolbox.)
  */
 import { renderIcons } from "./icons.js";
 import { ol } from "./ol.js";
@@ -699,7 +699,7 @@ export function initGeoportal(cfg) {
     if (f) selectCountry(f.get("iso"), false);
   }
 
-  // Saved project areas (PostGIS / SpatiaLite) ------------------------------
+  // Saved project areas (PostGIS) -------------------------------------------
   var savedSel = $("[data-gp-saved]"), moreMenu = $("[data-gp-more]");
   var saveDlg = $("[data-gp-save-dialog]"), delDlg = $("[data-gp-delete-dialog]");
   var saved = [], activeAreaId = null;
@@ -717,8 +717,9 @@ export function initGeoportal(cfg) {
     });
   }
   function aoiGeometry() {
-    var fc = G.aoi();
-    if (!fc) return null;
+    var feats = aoiSource.getFeatures();
+    if (!feats.length) return null;
+    var fc = JSON.parse(new ol.format.GeoJSON().writeFeatures(feats, { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857", decimals: 7 }));
     var geoms = fc.features.map(function (f) { return f.geometry; });
     if (geoms.length === 1) return geoms[0];
     var polys = [];
@@ -874,7 +875,7 @@ export function initGeoportal(cfg) {
 
   renderActive();
 
-  // Public interface for the Toolbox ----------------------------------------
+  // Downloads of result layers
   function saveBytes(bytes, name, mime) {
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([bytes], { type: mime || "application/octet-stream" }));
@@ -882,45 +883,6 @@ export function initGeoportal(cfg) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
   }
-  var pickHandler = null;
-  var G = {
-    map: map, view: view, store: store, icons: icons, saveBytes: saveBytes,
-    defs: defs,
-    layerYear: function (id) { return meta[id] ? meta[id].year : (defs[id] && defs[id].year) || null; },
-    addResult: function (def, layer) {
-      def.result = true;
-      defs[def.id] = def;
-      addLayer(def.id, layer);
-      selectTab(document.getElementById("gpt-active"));
-    },
-    removeLayer: removeLayer,
-    aoi: function () {
-      var feats = aoiSource.getFeatures();
-      if (!feats.length) return null;
-      return JSON.parse(new ol.format.GeoJSON().writeFeatures(feats, { dataProjection: "EPSG:4326", featureProjection: "EPSG:3857", decimals: 7 }));
-    },
-    openAreaTab: function () { selectTab(document.getElementById("gpt-area"), true); },
-    pickPoint: function (prompt) {
-      return new Promise(function (resolve, reject) {
-        if (pickHandler) { map.un("singleclick", pickHandler); }
-        var el = map.getTargetElement();
-        el.classList.add("is-picking"); drawing = true;
-        var tip = $("[data-gp-pick-tip]");
-        tip.textContent = prompt || "Click on the map to place the point. Press Esc to cancel.";
-        tip.hidden = false;
-        function done(v, err) {
-          map.un("singleclick", pickHandler); pickHandler = null;
-          el.classList.remove("is-picking"); tip.hidden = true; drawing = false;
-          document.removeEventListener("keydown", esc);
-          if (err) reject(err); else resolve(v);
-        }
-        function esc(e) { if (e.key === "Escape") done(null, new Error("cancelled")); }
-        pickHandler = function (e) { done(ol.proj.toLonLat(e.coordinate)); };
-        map.on("singleclick", pickHandler);
-        document.addEventListener("keydown", esc, { signal: signal });
-      });
-    }
-  };
 
   // Dropdown menus inside the portal (basemap picker, saved-area actions).
   var menus = $$("[data-menu]", root);
@@ -948,7 +910,6 @@ export function initGeoportal(cfg) {
 
   icons();
   return {
-    G: G,
     destroy: function () {
       ac.abort();
       observers.forEach(function (o) { o.disconnect(); });

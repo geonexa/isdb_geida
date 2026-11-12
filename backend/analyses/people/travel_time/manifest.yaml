@@ -1,0 +1,50 @@
+id: travel_time
+version: 0.2.0
+title: Travel time to cities and health care
+question: How remote is the area from towns, cities and health care?
+description: >
+  Combines the Malaria Atlas Project's global travel-time maps (~1 km) with the GHSL population
+  grid: travel time to the nearest city of 50,000 or more people (2015), or to the nearest health
+  facility by motorised transport or on foot (2019). Reports the population-weighted mean and
+  median travel time, people by travel-time band, the same per administrative unit, and the map.
+status: experimental
+category: people
+themes: [health, transport, social, agriculture]
+phases: [preparation, completion]
+cri: []
+inputs:
+  required:
+    - {name: population, type: raster, default: worldpop, label: "Population (WorldPop R2025A, 100 m)"}
+    - {name: travel, type: raster, default: map_tt_cities, label: Travel time (Malaria Atlas Project)}
+parameters:
+  - {name: travel_dataset, type: choice, default: map_tt_cities, label: Travel time to,
+     choices: [{value: map_tt_cities, label: "Cities of 50,000+ people (2015)"},
+               {value: map_tt_health_motor, label: Health care by motorised transport (2019)},
+               {value: map_tt_health_walk, label: Health care on foot (2019)}]}
+  - {name: threshold_min, type: number, default: 60, min: 10, max: 600, label: Within (minutes)}
+  - {name: population_dataset, type: choice, default: worldpop, label: People counted,
+     choices: [{value: worldpop, label: "Everyone (WorldPop)"}, {value: worldpop_age_5_14, label: "School-age children 5–14 (WorldPop)"},
+               {value: worldpop_under_5, label: "Children under 5 (WorldPop)"}, {value: worldpop_women_15_49, label: "Women 15–49 (WorldPop)"},
+               {value: worldpop_age_65_plus, label: "People 65 and over (WorldPop)"}, {value: ghsl_pop, label: "Everyone (GHSL)"}]}
+  - {name: year, type: number, default: 2025, min: 2015, max: 2030, label: Year}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: mean_minutes}
+  - {type: metric, name: median_minutes}
+  - {type: metric, name: within_share}
+  - {type: table, name: bands}
+  - {type: table, name: per_zone}
+  - {type: raster, name: travel_time}
+requires: [gdal]
+limits: {max_area_km2: 200000}
+queue: raster
+runtime: under a minute
+citations: ["Weiss, D. J. et al. 2018. A global map of travel time to cities to assess inequalities in accessibility in 2015. Nature 553: 333–336 (Malaria Atlas Project, CC BY 4.0)",
+            "Weiss, D. J. et al. 2020. Global maps of travel time to healthcare facilities. Nature Medicine 26: 1835–1838 (Malaria Atlas Project, CC BY 4.0)",
+            "WorldPop Global2 R2025A v1 (University of Southampton), DOI 10.5258/SOTON/WP00839, WP00841, CC BY 4.0",
+            "GHS-POP R2023A, GHSL Data Package 2023, European Commission JRC, CC BY 4.0"]
+steps:
+  - read: WorldPop (100 m, everyone or an age / sex group; GHSL as fallback) and the chosen MAP travel-time map (~1 km, from MAP's WCS), resampled onto the population grid
+  - weight: travel time of each 100 m cell weighted by its people; mean, median and bands (15, 30, 60, 120, 180, 360 min)
+  - per_zone: population-weighted mean and share within the chosen time per admin unit

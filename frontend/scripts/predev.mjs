@@ -1,5 +1,4 @@
 // Prepares the files `vite` serves that aren't produced by Vite itself:
-//   - the GeoLibre processing engine (geolibre-wasm) in public/vendor (Geo-Portal tools);
 //   - the JupyterLite site behind the Analytics Notebook panel (optional: needs
 //     `pip install -r gis/apps/web/jupyterlite/requirements.txt`, skipped otherwise);
 //   - @geolibre/embed (gis/packages/embed/dist, git-ignored), whose types GeoLibre
@@ -19,7 +18,6 @@ function run(script, args) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
-run("scripts/copy-engine.mjs", build ? [] : ["--if-missing"]);
 run("gis/scripts/build-jupyterlite.mjs", build ? [] : ["--if-missing"]);
 
 const embed = join(root, "gis", "packages", "embed");

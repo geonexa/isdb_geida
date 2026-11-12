@@ -15,9 +15,9 @@ from django.contrib.gis.geos import MultiPolygon, Polygon
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 
-from apps.analysis import osm
+from apps.analysis.data import osm
 from apps.analysis.models import Evidence, ModuleRun
-from apps.analysis.registry import read_categories, read_manifests
+from apps.analysis.core.registry import read_categories, read_manifests
 from apps.boundaries.models import AdminUnit
 from apps.projects.models import Indicator, Project, ProjectArea
 
@@ -120,7 +120,7 @@ class ModuleRunTests(TestCase):
         self.assertNotIn("area_baseline", ids)  # parked
         self.assertNotIn("terrain", ids)
         self.assertEqual([c["id"] for c in d["categories"]], [c["id"] for c in read_categories()])
-        self.assertEqual(len(d["categories"]), 5)
+        self.assertEqual(len(d["categories"]), 8)
         cats = {c["id"] for c in d["categories"]}
         self.assertTrue(all(m["category"] in cats for m in d["modules"]))
         self.assertEqual(sum(c["modules"] for c in d["categories"]), len(d["modules"]))
@@ -128,18 +128,73 @@ class ModuleRunTests(TestCase):
         self.assertEqual(ids["schools_inventory"]["cri_in_project"], ["9.3"])
         self.assertEqual(d["modules"][0]["id"], "schools_inventory")  # CRI match first
 
+    def test_catalogue_lists_planned_analyses(self):
+        d = self.client.get("/api/analysis/modules/?project=UGA1072").json()
+        planned = {p["id"]: p for p in d["planned"]}
+        cats = {c["id"]: c for c in d["categories"]}
+        self.assertIn("water_balance", planned)
+        self.assertEqual(planned["water_balance"]["category"], "water")
+        self.assertTrue(all(p["category"] in cats and p["phases"] for p in planned.values()))
+        self.assertEqual(sum(c["planned"] for c in d["categories"]), len(planned))
+        built = {m["id"] for m in d["modules"]}
+        self.assertFalse(built & set(planned))  # a built module replaces its planned entry
+        # Some analyses serve several phases, some only one.
+        self.assertEqual(planned["landforms"]["phases"], ["preparation"])
+        self.assertNotIn("slope", planned)  # built: its module replaced the planned entry
+        self.assertEqual(planned["change_since_baseline"]["phases"], ["implementation", "completion"])
+
+    def test_planned_entries_are_validated(self):
+        from apps.analysis.core.registry import read_planned
+        bad = TMP / "bad_planned"
+        bad.mkdir(parents=True, exist_ok=True)
+        (bad / "categories.yaml").write_text("categories: [{id: water, title: Water}]")
+        (bad / "planned.yaml").write_text("planned: [{id: a, title: A, category: nope, phases: [preparation]}]")
+        with self.settings(ANALYSES_DIR=bad), self.assertRaisesMessage(ValueError, "category 'nope'"):
+            read_planned()
+        (bad / "planned.yaml").write_text("planned: [{id: a, title: A, category: water, phases: [later]}]")
+        with self.settings(ANALYSES_DIR=bad), self.assertRaisesMessage(ValueError, "needs phases"):
+            read_planned()
+        (bad / "planned.yaml").write_text("planned: [{id: a, title: A, category: water, phases: [preparation]}]")
+        with self.settings(ANALYSES_DIR=bad):
+            self.assertEqual([p["id"] for p in read_planned(built={"x"})], ["a"])
+            self.assertEqual(read_planned(built={"a"}), [])
+
     def test_manifest_category_is_validated(self):
-        bad = TMP / "bad_modules"
-        (bad / "x").mkdir(parents=True, exist_ok=True)
-        (bad / "categories.yaml").write_text("categories: [{id: social, title: Social}]")
-        (bad / "x" / "run.py").write_text("def run(ctx): pass\n")
-        (bad / "x" / "manifest.yaml").write_text("id: x\nversion: 1\ntitle: X\ncategory: nope\nphases: []\ninputs: {}\n")
-        (bad / "_parked" / "y").mkdir(parents=True, exist_ok=True)
-        with self.settings(MODULES_DIR=bad), self.assertRaisesMessage(ValueError, "category 'nope'"):
+        import shutil
+        bad = TMP / "bad_analyses"
+        shutil.rmtree(bad, ignore_errors=True)
+        x = bad / "social" / "xx"
+        x.mkdir(parents=True, exist_ok=True)
+        (bad / "categories.yaml").write_text("categories: [{id: social, title: Social}, {id: water, title: Water}]")
+        (x / "run.py").write_text("def run(ctx): pass\n")
+        manifest = "id: xx\nversion: 1.0.0\ntitle: Test\ncategory: {}\nphases: [preparation]\n"
+        (bad / "_parked" / "social" / "y").mkdir(parents=True, exist_ok=True)  # hidden: not read
+        (bad / "_template" / "z").mkdir(parents=True, exist_ok=True)
+        (x / "manifest.yaml").write_text(manifest.format("water"))
+        with self.settings(ANALYSES_DIR=bad), self.assertRaisesMessage(ValueError, "must match its category folder 'social'"):
             read_manifests()
-        (bad / "x" / "manifest.yaml").write_text("id: x\nversion: 1\ntitle: X\ncategory: social\nphases: []\ninputs: {}\n")
-        with self.settings(MODULES_DIR=bad):
-            self.assertEqual(list(read_manifests()), ["x"])
+        (x / "manifest.yaml").write_text(manifest.format("social"))
+        with self.settings(ANALYSES_DIR=bad):
+            self.assertEqual(list(read_manifests()), ["xx"])
+        # A category folder that isn't in categories.yaml
+        (bad / "categories.yaml").write_text("categories: [{id: water, title: Water}]")
+        with self.settings(ANALYSES_DIR=bad), self.assertRaisesMessage(ValueError, "category 'social' isn't in categories.yaml"):
+            read_manifests()
+        # Analysis ids are unique across categories
+        (bad / "categories.yaml").write_text("categories: [{id: social, title: Social}, {id: water, title: Water}]")
+        dup = bad / "water" / "xx"
+        dup.mkdir(parents=True, exist_ok=True)
+        (dup / "run.py").write_text("def run(ctx): pass\n")
+        (dup / "manifest.yaml").write_text(manifest.format("water"))
+        with self.settings(ANALYSES_DIR=bad), self.assertRaisesMessage(ValueError, "analysis id 'xx' is also used"):
+            read_manifests()
+
+    def test_analyses_are_grouped_in_category_folders(self):
+        from apps.analysis.core.registry import analysis_folders, load_run_function
+        folders = analysis_folders()
+        self.assertEqual(folders["buildings"].parent.name, "infrastructure")
+        self.assertNotIn("terrain", folders)  # parked
+        self.assertTrue(callable(load_run_function("road_network")))
 
     def test_parked_module_runs_stay_viewable(self):
         from apps.analysis.models import Module
@@ -238,6 +293,40 @@ class ModuleRunTests(TestCase):
     def test_rerun_is_identical(self):
         a, b = self.start("road_network"), self.start("road_network")
         self.assertEqual(self.out(a, "by_class")["rows"], self.out(b, "by_class")["rows"])
+
+    def test_delete_runs(self):
+        a = self.start("schools_inventory")
+        b = self.start("schools_inventory")
+        c = self.start("schools_inventory")
+        self.assertTrue(a.workdir.exists())
+        listed = {r["id"]: r for r in self.client.get("/api/analysis/runs/?project=UGA1072").json()["runs"]}
+        self.assertTrue(listed[a.id]["can_delete"])
+        # Accepted evidence keeps a run.
+        ev = Evidence.objects.filter(run=c).first()
+        if ev is None:
+            ev = Evidence.objects.create(project=self.p, run=c, cri_code="9.3", phase="preparation", instrument="PPRR",
+                                         label="x", role="verify")
+        ev.status = "accepted"
+        ev.save()
+        r = self.client.delete(f"/api/analysis/runs/{c.id}/")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("accepted evidence", r.json()["error"])
+        # Someone else can't delete it; the owner can.
+        other = get_user_model().objects.create_user("x2", "x2@example.org", "pw-123456!")
+        Project.objects.filter(pk=self.p.pk).update(status="published")
+        self.client.force_login(other)
+        self.assertEqual(self.client.delete(f"/api/analysis/runs/{a.id}/").status_code, 403)
+        self.client.force_login(self.user)
+        r = self.client.delete(f"/api/analysis/runs/{a.id}/")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(ModuleRun.objects.filter(pk=a.id).exists())
+        self.assertFalse(a.workdir.exists())
+        # Several at once: deleted and refused are reported separately; the Activity log records each deletion.
+        r = self.client.post("/api/analysis/runs/delete/", json.dumps({"ids": [b.id, c.id]}), content_type="application/json").json()
+        self.assertEqual([d["id"] for d in r["deleted"]], [b.id])
+        self.assertEqual([x["id"] for x in r["refused"]], [c.id])
+        log = list(self.p.log.filter(action="deleted analysis run").values_list("detail__run", flat=True))
+        self.assertEqual(sorted(log), sorted([a.id, b.id]))
 
     def test_permissions(self):
         other = get_user_model().objects.create_user("x", "x@example.org", "pw-123456!")

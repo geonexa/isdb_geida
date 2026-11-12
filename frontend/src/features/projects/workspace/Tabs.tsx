@@ -138,6 +138,7 @@ export function ActivityTab({ p }: { p: Project }) {
           <strong>{l.action}</strong>
           <span className="muted small">{l.user || "system"} · {new Date(l.created).toLocaleString()}</span>
           {typeof l.detail.comment === "string" && <q>{l.detail.comment}</q>}
+          {typeof l.detail.title === "string" && <span className="small">{l.detail.title}</span>}
         </li>
       ))}
     </ol>

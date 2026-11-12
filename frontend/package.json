@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "postinstall": "node gis/scripts/apply-dependency-patches.mjs",
-    "engine": "node scripts/copy-engine.mjs",
     "dev": "node scripts/predev.mjs && vite",
     "build": "node scripts/predev.mjs --build && npm run typecheck && vite build",
     "preview": "vite preview",

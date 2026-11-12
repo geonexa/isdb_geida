@@ -1,0 +1,44 @@
+id: field_boundaries
+version: 0.1.0
+title: Field boundaries
+question: How many fields are there, how large, and how much land do they cover?
+description: >
+  Reads the Fields of The World (2nd edition) field polygons for a year (2023–2025) over the area
+  of influence: number of fields, land in fields, field size classes and the median size, the
+  same per administrative unit, a field density grid and, for smaller areas, the field outlines.
+  Fields are model predictions from Sentinel-2 imagery, not surveyed or legal parcels.
+status: experimental
+category: land
+themes: [agriculture]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required:
+    - {name: fields, type: vector_polygon, default: ftw_fields_2025, label: Field boundaries (Fields of The World), color: "#16A34A"}
+parameters:
+  - {name: fields_dataset, type: choice, default: ftw_fields_2025, label: Year,
+     choices: [{value: ftw_fields_2025, label: "2025"}, {value: ftw_fields_2024, label: "2024"}, {value: ftw_fields_2023, label: "2023"}]}
+  - {name: min_score, type: number, default: 0, min: 0, max: 95, label: Minimum model score (0–100)}
+  - {name: cell_m, type: choice, default: 1000, label: Density grid cell,
+     choices: [{value: 500, label: 500 m}, {value: 1000, label: 1 km}, {value: 2000, label: 2 km}]}
+  - {name: zone_level, type: choice, default: 2, label: Summarise by,
+     choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]}
+outputs:
+  - {type: metric, name: field_count}
+  - {type: metric, name: field_area}
+  - {type: metric, name: field_share}
+  - {type: metric, name: median_size}
+  - {type: table, name: size_classes}
+  - {type: table, name: per_zone}
+  - {type: vector, name: density}
+  - {type: vector, name: fields, optional: true}
+requires: []
+limits: {max_area_km2: 10000}
+queue: heavy
+runtime: one to five minutes (depends on the number of fields)
+citations: ["Fields of The World, Global Data 2nd Edition (Taylor Geospatial Engine), CC BY 4.0"]
+steps:
+  - read: field polygons of the year intersecting the area, from the GeoParquet file of each UTM zone (bounding box read)
+  - filter: model score at or above the minimum
+  - count: a field belongs to the admin unit holding its representative point; area from the product (m²)
+  - grid: share of each cell's land in fields (by field representative point)

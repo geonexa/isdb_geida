@@ -118,3 +118,36 @@ class ProjectLog(models.Model):
 
     class Meta:
         ordering = ["-created"]
+
+
+# Map export layouts: kept per user, so they follow the user to any computer or browser ----------------------
+class MapLayout(models.Model):
+    """A user's last map export layout for a project (the export dialog reopens it)."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="map_layouts")
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="map_layouts")
+    layout = models.JSONField()
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "project"], name="unique_map_layout_per_user_project")]
+
+
+class MapTemplate(models.Model):
+    """A map export layout a user saved under a name, to reuse on any project."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="map_templates")
+    name = models.CharField(max_length=80)
+    layout = models.JSONField()
+    saved = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-saved"]
+        constraints = [models.UniqueConstraint(fields=["user", "name"], name="unique_map_template_name_per_user")]
+
+
+class MapSettings(models.Model):
+    """A user's map export settings (export resolution)."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True, related_name="map_settings")
+    dpi = models.PositiveSmallIntegerField(default=300)

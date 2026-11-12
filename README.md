@@ -9,7 +9,7 @@ Built by Terra, Expo City Dubai, for the Islamic Development Bank.
 
 | | |
 |---|---|
-| **Backend** | Django 5 API · GeoDjango · PostGIS / SpatiaLite · Celery + Redis · TiTiler (COG + STAC) — [backend/README.md](backend/README.md) |
+| **Backend** | Django 5 API · GeoDjango · PostgreSQL + PostGIS · Celery + Redis · TiTiler (COG + STAC) — [backend/README.md](backend/README.md) |
 | **Frontend** | React 19 · TypeScript · Vite · MapLibre GL · GeoLibre workspace — [frontend/README.md](frontend/README.md) |
 | **Docs** | Full documentation site (MkDocs): introduction, architecture, setup, deployment, changelog — [docs/](docs/index.md), see below |
 | **Deploy** | Apache, systemd, release script — [deploy/README.md](deploy/README.md) |
@@ -46,7 +46,7 @@ The documentation site is built from `docs/` with MkDocs:
 ```bash
 conda activate geida
 pip install -r docs/requirements.txt   # once
-mkdocs serve                          # http://127.0.0.1:8001
+mkdocs serve --livereload                        # http://127.0.0.1:8001
 ```
 
 Start with *Setup → Local development*; record every release in `docs/changelog.md`.

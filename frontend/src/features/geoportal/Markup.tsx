@@ -1,12 +1,12 @@
 /*
- * Geo-Portal markup. Rendered once; the engine (engine/geoportal.js, engine/toolbox.js)
+ * Geo-Portal markup. Rendered once; the engine (engine/geoportal.js)
  * then drives it through the data-* hooks, so this component must not re-render
  * with different props after the engine starts (see GeoPortalPage).
  */
 import {
-  ArrowLeft, ChevronDown, EllipsisVertical, Grid3x3, GripVertical, House, Info, Layers, Library, LocateFixed,
-  Maximize, Minimize, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Pentagon, Play, Plus, Save, Scan,
-  ScanSearch, Search, Spline, SquareDashed, Trash2, Upload, Download, Wrench, X,
+  ChevronDown, EllipsisVertical, Grid3x3, GripVertical, House, Info, Layers, Library, LocateFixed,
+  Maximize, Minimize, Minus, PanelLeftClose, PanelLeftOpen, Pencil, Pentagon, Plus, Save, Scan,
+  ScanSearch, Search, Spline, SquareDashed, Trash2, Upload, Download, X,
 } from "lucide-react";
 import { memo } from "react";
 import { Link } from "react-router-dom";
@@ -42,9 +42,6 @@ function MarkupImpl({ cfg, signedIn, signInHref }: Props) {
             <div className="gp-layers-bar">
               <button type="button" className="gp-btn gp-btn-dark gp-btn-sm gp-catbtn" data-gp-open-catalog="" data-gp-catalog-toggle="" aria-controls="gp-catalog-win" aria-expanded="false" title="Open or close the data catalog">
                 <Library aria-hidden="true" />Catalog
-              </button>
-              <button type="button" className="gp-btn gp-btn-outline gp-btn-sm gp-toolbtn" data-tb-toggle="" aria-controls="gp-toolbox-win" aria-expanded="false" title="Open or close the processing toolbox">
-                <Wrench aria-hidden="true" />Toolbox
               </button>
             </div>
             <div className="gp-layers-bar"><span>On the map</span></div>
@@ -214,57 +211,6 @@ function MarkupImpl({ cfg, signedIn, signInHref }: Props) {
             </div>
           </section>
 
-          <section className="gp-catwin gp-toolwin" id="gp-toolbox-win" role="dialog" aria-labelledby="gp-toolbox-title" aria-modal="false" hidden data-tb-win="">
-            <header className="gp-catwin-head" data-tb-drag="" title="Drag to move">
-              <GripVertical className="gp-grip" aria-hidden="true" />
-              <div className="gp-catwin-title">
-                <h2 id="gp-toolbox-title">Processing toolbox</h2>
-                <p data-tb-subtitle="">{cfg.tool_count} GEIDA tools · runs in your browser</p>
-              </div>
-              <button type="button" className="gp-icon-btn" data-tb-close="" aria-label="Close toolbox" title="Close"><X aria-hidden="true" /></button>
-            </header>
-            <div className="gp-catwin-body">
-              <div className="tb-engine" data-tb-engine="">
-                <span className="tb-spin" aria-hidden="true"></span>
-                <span data-tb-engine-text="">Loading the processing engine (about 9 MB, first time only)…</span>
-              </div>
-              <div className="tb-view" data-tb-list="">
-                <div className="gp-tools">
-                  <label className="gp-search">
-                    <Search aria-hidden="true" />
-                    <span className="visually-hidden">Search tools</span>
-                    <input type="search" placeholder="Search tools" data-tb-search="" autoComplete="off" />
-                  </label>
-                  <label className="tb-all"><input type="checkbox" className="checkbox" data-tb-all="" /> Show all <span data-tb-all-count="">1,000+</span> tools</label>
-                </div>
-                <div className="gp-scroll" data-tb-tools=""></div>
-              </div>
-              <div className="tb-view" data-tb-form-view="" hidden>
-                <div className="tb-form-head">
-                  <button type="button" className="gp-icon-btn" data-tb-back="" aria-label="Back to tools" title="Back"><ArrowLeft aria-hidden="true" /></button>
-                  <div>
-                    <h3 data-tb-tool-name=""></h3>
-                    <p data-tb-tool-summary=""></p>
-                  </div>
-                </div>
-                <div className="gp-scroll gp-pad">
-                  <form className="tb-form" data-tb-form="" noValidate></form>
-                  <div className="tb-run" data-tb-run="" hidden>
-                    <ol className="tb-steps" data-tb-steps=""></ol>
-                    <pre className="tb-log" data-tb-log="" hidden></pre>
-                  </div>
-                </div>
-                <div className="tb-actions">
-                  <button type="button" className="gp-btn gp-btn-dark" data-tb-submit=""><Play aria-hidden="true" />Run</button>
-                </div>
-              </div>
-              <details className="tb-history" data-tb-history="" hidden>
-                <summary>Runs this session <span data-tb-history-count="">0</span></summary>
-                <ul data-tb-history-list=""></ul>
-              </details>
-            </div>
-          </section>
-          <div className="gp-pick-tip" data-gp-pick-tip="" hidden></div>
 
           <div className="gp-ctrl" role="toolbar" aria-label="Map controls">
             <div className="gp-ctrl-group">

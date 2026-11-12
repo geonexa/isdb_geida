@@ -10,21 +10,9 @@ import { useLocation } from "react-router-dom";
 import { api } from "@/shared/api/client";
 import { useAuth } from "@/features/auth/AuthContext";
 import { initGeoportal } from "@/features/geoportal/engine/geoportal.js";
-import { initToolbox } from "@/features/geoportal/engine/toolbox.js";
 import { Markup } from "@/features/geoportal/Markup";
 import type { GeoportalConfig } from "@/features/geoportal/types";
 import { useBodyClass, useTitle } from "@/shared/lib/dom";
-
-// The processing engine is copied into public/vendor by scripts/copy-engine.mjs.
-const VENDOR = "/vendor/geolibre-wasm/";
-const ENGINE = {
-  mode: "local",
-  version: "1.7.1",
-  tools: VENDOR + "tools.mjs",
-  lib: VENDOR + "geolibre_wasm.js",
-  cliWasm: VENDOR + "geolibre-cli.wasm",
-  libWasm: VENDOR + "geolibre_wasm_bg.wasm",
-};
 
 function Portal({ cfg, signedIn }: { cfg: GeoportalConfig; signedIn: boolean }) {
   const { pathname } = useLocation();
@@ -34,13 +22,7 @@ function Portal({ cfg, signedIn }: { cfg: GeoportalConfig; signedIn: boolean }) 
       basemaps: cfg.basemaps,
       areas: { signedIn, api: "/api/geoportal/areas/", countries: "/data/isdb_member_countries.geojson" },
     });
-    const destroyToolbox = initToolbox(portal.G, {
-      toolbox: cfg.toolbox,
-      clippable: cfg.clippable,
-      engine: ENGINE,
-      workerUrl: "/processing/geolibre-worker.js",
-    });
-    return () => { destroyToolbox(); portal.destroy(); };
+    return () => portal.destroy();
   }, [cfg, signedIn]);
   return <Markup cfg={cfg} signedIn={signedIn} signInHref={`/accounts/sign-in?next=${encodeURIComponent(pathname)}`} />;
 }

@@ -1,0 +1,87 @@
+# Planned analyses: listed in the Analyses tab (as "Planned") in their category and phases
+# until a module with the same id is built; then the module replaces the entry.
+# phases: preparation (PPRR), implementation (PIASR), completion (PCR); one or more.
+# Plan with data sources and engines: docs/planning/analysis-catalogue-plan.md
+
+planned:
+  # 1 Terrain and site conditions
+  - {id: elevation_profile, category: terrain, title: Elevation profile, question: "What are the lowest, highest and mean elevations, and how is the land distributed by height?", phases: [preparation]}
+  - {id: slope, category: terrain, title: Slope and slope classes, question: "How steep is the land, and how much of it falls in each slope class?", phases: [preparation]}
+  - {id: aspect, category: terrain, title: Aspect, question: "Which way do the slopes face?", phases: [preparation]}
+  - {id: hillshade, category: terrain, title: Hillshade and relief, question: "What does the relief look like, for maps and reports?", phases: [preparation]}
+  - {id: contours, category: terrain, title: Contours, question: "Contour lines at a chosen interval, ready to download.", phases: [preparation]}
+  - {id: landforms, category: terrain, title: Landforms and ruggedness, question: "Where are the ridges, valleys, slopes and plains?", phases: [preparation]}
+  - {id: soil_properties, category: terrain, title: Soil properties, question: "What are the soil texture, organic carbon, pH and depth?", phases: [preparation]}
+  - {id: terrain_profile, category: terrain, title: Profile and viewshed, question: "What is the elevation along a line, and what is visible from a point?", phases: [preparation]}
+
+  # 2 Water resources
+  - {id: catchment, category: water, title: Catchment delineation, question: "Which area drains to the site, and how large is it?", phases: [preparation]}
+  - {id: stream_network, category: water, title: Stream network and order, question: "Where do rivers and streams run, and how many km of each order?", phases: [preparation]}
+  - {id: sub_basins, category: water, title: Sub-basins, question: "Which river basins and sub-basins does the area cover?", phases: [preparation]}
+  - {id: water_bodies, category: water, title: Rivers, lakes and reservoirs, question: "Which water bodies are in or near the area?", phases: [preparation]}
+  - {id: surface_water, category: water, title: Surface water occurrence and change, question: "Where is water permanent or seasonal, and is it changing?", phases: [preparation, implementation, completion]}
+  - {id: water_points, category: water, title: Water points, question: "Which wells, boreholes and taps exist, and are they working?", phases: [preparation, implementation, completion]}
+  - {id: precipitation, category: water, title: Precipitation, question: "How much rain falls each year and season, and is this year normal?", phases: [preparation, implementation, completion]}
+  - {id: evapotranspiration, category: water, title: Evapotranspiration, question: "How much water do land and crops consume (ETa, transpiration, evaporation)?", phases: [preparation, implementation, completion]}
+  - {id: water_balance, category: water, title: Water balance (P − ETa), question: "Is there a water surplus or deficit each year?", phases: [preparation, implementation, completion]}
+  - {id: et_deficit, category: water, title: ET deficit and water stress, question: "Where are crops short of water (ETa compared with reference ET)?", phases: [preparation, implementation]}
+  - {id: water_productivity, category: water, title: Water productivity and gap, question: "How much biomass is produced per m³ of water, and what could be gained?", phases: [preparation, completion]}
+  - {id: water_accounting, category: water, title: Water accounting summary, question: "What are the inflows, consumption and outflows of the area's water?", phases: [preparation, completion]}
+  - {id: runoff, category: water, title: Runoff estimate, question: "How much rain runs off, for design of drainage and storage?", phases: [preparation]}
+
+  # 3 Land, vegetation and agriculture
+  - {id: land_cover, category: land, title: Land cover composition, question: "How much of the area is cropland, forest, built-up, water and other classes?", phases: [preparation, implementation, completion]}
+  - {id: land_cover_change, category: land, title: Land cover change, question: "What land cover changed into what between two years?", phases: [preparation, implementation, completion]}
+  - {id: vegetation_indices, category: land, title: Vegetation indices (NDVI, EVI, SAVI, NDMI), question: "How green and healthy is the vegetation in a chosen period?", phases: [preparation, implementation, completion]}
+  - {id: vegetation_anomaly, category: land, title: Seasonal profile and anomaly, question: "Is this season's vegetation better or worse than normal?", phases: [preparation, implementation, completion]}
+  - {id: field_boundaries, category: land, title: Field boundaries, question: "How many fields are there, how large, and how much land do they cover?", phases: [preparation, implementation, completion]}
+  - {id: field_statistics, category: land, title: Per-field statistics, question: "What are vegetation and biomass values for each field?", phases: [preparation, implementation, completion]}
+  - {id: cropland_irrigation, category: land, title: Cropland and irrigated area, question: "Where are crops grown, and which land is irrigated?", phases: [preparation, completion]}
+  - {id: biomass, category: land, title: Biomass production, question: "How much biomass does the land produce each year?", phases: [preparation, implementation, completion]}
+  - {id: forest_loss, category: land, title: Forest cover and loss, question: "How much forest is there, and how much was lost each year?", phases: [preparation, implementation, completion]}
+  - {id: land_expansion, category: land, title: Cropland and urban expansion, question: "How did farmland and towns grow over time?", phases: [preparation, completion]}
+
+  # 4 Climate and natural hazards
+  - {id: climate_profile, category: hazards, title: Climate profile, question: "What are the area's long-term rainfall and temperature normals and trends?", phases: [preparation]}
+  - {id: drought, category: hazards, title: Drought indicators, question: "Is the area in drought (rainfall and vegetation anomalies)?", phases: [preparation, implementation]}
+  - {id: flood_hazard, category: hazards, title: Flood hazard, question: "Which areas are prone to flooding, and at what return periods?", phases: [preparation, implementation]}
+  - {id: observed_flooding, category: hazards, title: Observed flooding, question: "Where did water spread this season?", phases: [implementation, completion]}
+  - {id: landslide, category: hazards, title: Landslide susceptibility, question: "Where are slopes prone to landslides?", phases: [preparation]}
+  - {id: heat, category: hazards, title: Heat, question: "How many hot days, and where is land hottest?", phases: [preparation]}
+  - {id: hazard_exposure, category: hazards, title: Exposure to hazards, question: "How many people, buildings, roads and fields lie in hazard zones?", phases: [preparation, implementation]}
+
+  # 5 People and socio-economics
+  - {id: population, category: people, title: Population and density, question: "How many people live in the area, where, and per admin unit?", phases: [preparation, completion]}
+  - {id: population_change, category: people, title: Population change, question: "How fast has the population grown since 2000?", phases: [preparation, completion]}
+  - {id: settlements, category: people, title: Settlements, question: "Which villages and towns are there, how large, how urban?", phases: [preparation, completion]}
+  - {id: service_access, category: people, title: Access to services, question: "How many people live within reach of schools, clinics, markets and roads?", phases: [preparation, completion]}
+  - {id: travel_time, category: people, title: Travel time to towns, question: "How remote is the area from towns and cities?", phases: [preparation, completion]}
+  - {id: electrification, category: people, title: Electrification, question: "Which settlements are lit at night, and is it changing?", phases: [preparation, implementation, completion]}
+  - {id: wealth, category: people, title: Relative wealth and poverty, question: "Where are the poorest communities?", phases: [preparation, completion]}
+  - {id: development_indicators, category: people, title: Subnational development indicators, question: "What are HDI, education and health levels per region?", phases: [preparation, completion]}
+  - {id: census_indicators, category: people, title: Census indicators, question: "What do the project's census data say per unit (schooling, WASH, electricity)?", phases: [preparation, completion]}
+
+  # 6 Infrastructure and services (buildings, roads, schools and health are existing modules)
+  - {id: built_up, category: infrastructure, title: Built-up area and growth, question: "How much land is built up, and how has it grown since 1975?", phases: [preparation, completion]}
+  - {id: transport_hubs, category: infrastructure, title: Railways, airports and seaports, question: "Which railways, airports and seaports serve the area, and how far are they?", phases: [preparation]}
+  - {id: river_crossings, category: infrastructure, title: Bridges and river crossings, question: "Where do roads cross rivers?", phases: [preparation]}
+  - {id: public_facilities, category: infrastructure, title: Public facilities, question: "Which markets, banks, offices, police, post offices and places of worship exist?", phases: [preparation, completion]}
+  - {id: power_grid, category: infrastructure, title: Power grid, question: "Where are the power lines and substations, and how far is the grid?", phases: [preparation, implementation, completion]}
+  - {id: power_plants, category: infrastructure, title: Power plants, question: "Which power plants are in or near the area, by fuel and capacity?", phases: [preparation, completion]}
+  - {id: utility_networks, category: infrastructure, title: Telecoms, water and pipelines, question: "Which other utility networks run through the area?", phases: [preparation]}
+
+  # 7 Site selection and planning
+  - {id: renewable_resource, category: planning, title: Solar and wind resource, question: "Where is solar and wind potential best?", phases: [preparation]}
+  - {id: suitability, category: planning, title: Site suitability, question: "Where does an intervention fit best (solar plant, school, clinic, irrigation, water point, road)?", phases: [preparation]}
+  - {id: candidate_sites, category: planning, title: Candidate sites, question: "Which sites rank best, and why?", phases: [preparation]}
+  - {id: service_gaps, category: planning, title: Service gaps, question: "Which areas and people are beyond reach of a service?", phases: [preparation]}
+  - {id: offgrid_candidates, category: planning, title: Off-grid and mini-grid candidates, question: "Which settlements are unlit, far from the grid and large enough?", phases: [preparation]}
+  - {id: alternatives, category: planning, title: Alternatives comparison, question: "How do candidate sites or alignments compare?", phases: [preparation]}
+
+  # 8 Monitoring and impact
+  - {id: baseline_snapshot, category: monitoring, title: Baseline snapshot, question: "Record key indicators at appraisal, for comparison later.", phases: [preparation]}
+  - {id: change_since_baseline, category: monitoring, title: Change since baseline, question: "What changed since appraisal: land cover, vegetation, water, buildings, roads?", phases: [implementation, completion]}
+  - {id: construction_progress, category: monitoring, title: Construction footprint and progress, question: "Is construction visible at the site, and how far has it advanced?", phases: [implementation, completion]}
+  - {id: before_after_imagery, category: monitoring, title: Before and after imagery, question: "Satellite images of the site at two dates, for reports.", phases: [implementation, completion]}
+  - {id: beneficiaries, category: monitoring, title: Beneficiaries reached, question: "How many people are within reach of what the project built?", phases: [completion]}
+  - {id: outcome_indicators, category: monitoring, title: Outcome indicators, question: "Indicator values with sources, as evidence for the Results Framework.", phases: [implementation, completion]}
