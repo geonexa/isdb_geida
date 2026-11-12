@@ -181,6 +181,9 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   *2D map* (country, region or around the main map).
 
 ### Fixed
+- Hydrology analyses: a failed WhiteboxTools step was reported as a success (the `whitebox` package ignores the
+  executable's exit code and, with verbose mode off, its output), so a run stopped later on a missing file such
+  as `streams.shp`. Each step now checks the exit code and the run's error quotes WhiteboxTools' message.
 - Two runs needing the same dataset clip at once (e.g. a double-clicked Run; the worker runs several jobs)
   wrote the same temporary file and failed with "ZIPDecode: Decoding error". Temporary files are now unique
   per run, and a lock makes the second run wait and reuse the first one's clip (DEM and catalogue clips,
