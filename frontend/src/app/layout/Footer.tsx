@@ -31,7 +31,7 @@ export function Footer() {
           <div>
             <h2>Related</h2>
             <ul>
-              <li><a href="https://etoolkit.terrawatch.net/" rel="noopener">EO Toolkit (Phase I)</a></li>
+              <li><a href="https://etoolkit.terrawatch.net/" rel="noopener">EO Toolkit </a></li>
               <li><a href="https://www.isdb.org/" rel="noopener">Islamic Development Bank</a></li>
             </ul>
           </div>

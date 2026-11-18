@@ -2,7 +2,7 @@ from django.urls import path
 
 from apps.geoportal import project_rs
 
-from . import importer, map_layouts, views
+from . import importer, map_layouts, project_layers, views
 
 urlpatterns = [
     path("", views.project_list),
@@ -18,6 +18,9 @@ urlpatterns = [
     path("<str:code>/indicators/", views.project_indicators),
     path("<str:code>/documents/", views.project_documents),
     path("<str:code>/map-layout/", map_layouts.map_layout),
+    path("<str:code>/layers/", project_layers.project_layers),
+    path("<str:code>/layers/area/", project_layers.project_area_geojson),
+    path("<str:code>/layers/<str:layer_id>/raster/", project_layers.project_layer_raster),
     path("<str:code>/satellite/", project_rs.satellite_list),
     path("<str:code>/satellite/<slug:layer_id>/tiles/", project_rs.satellite_tiles),
     path("<str:code>/satellite/<slug:layer_id>/xyz/<int:z>/<int:x>/<int:y>.png", project_rs.satellite_xyz),

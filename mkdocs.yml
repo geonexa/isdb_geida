@@ -130,6 +130,7 @@ nav:
   - Changelog: changelog.md
   - Updates:
       - updates/index.md
+      - 2026-11-16 Project reports and server Toolbox: updates/2026-11-16.md
       - 2026-11-09 Documentation and branding: updates/2026-11-09.md
       - 2026-11-06 Raster layer service: updates/2026-11-06.md
       - 2026-11-02 Repository restructure: updates/2026-11-02.md

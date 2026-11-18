@@ -156,9 +156,8 @@ def _small_scale(geom):
     return out
 
 
-@require_GET
-def world(request):
-    """Every country outline, simplified for maps at globe or continent scale (cached)."""
+def world_data():
+    """Every country outline, simplified for maps at globe or continent scale (cached). Also used by reports."""
     data = cache.get(WORLD_CACHE_KEY)
     if data is None:
         features = []
@@ -171,7 +170,13 @@ def world(request):
                                  "geometry": {"type": "MultiPolygon", "coordinates": coords}})
         data = {"type": "FeatureCollection", "features": features}
         cache.set(WORLD_CACHE_KEY, data, 60 * 60 * 24)
-    resp = JsonResponse(data)
+    return data
+
+
+@require_GET
+def world(request):
+    """Every country outline, simplified for maps at globe or continent scale (cached)."""
+    resp = JsonResponse(world_data())
     resp["Cache-Control"] = "public, max-age=86400"
     return resp
 

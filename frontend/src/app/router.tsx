@@ -5,6 +5,7 @@ import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from "react-
 import { AuthLayout } from "@/app/layout/AuthLayout";
 import { Layout } from "@/app/layout/Layout";
 import Register from "@/features/auth/pages/Register";
+import { RequireSignIn } from "@/features/auth/RequireSignIn";
 import { ResetComplete, ResetConfirm, ResetRequest, ResetSent } from "@/features/auth/pages/PasswordReset";
 import SignIn from "@/features/auth/pages/SignIn";
 import Verify from "@/features/auth/pages/Verify";
@@ -21,6 +22,8 @@ const ProjectDetailPage = lazy(() => import("@/features/projects/ProjectDetailPa
 const ProjectWizard = lazy(() => import("@/features/projects/ProjectWizard"));
 const ImportPage = lazy(() => import("@/features/projects/ImportPage"));
 const lazyEl = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
+/** Project pages: signed-in users only. */
+const signedIn = (el: React.ReactNode) => <RequireSignIn>{lazyEl(el)}</RequireSignIn>;
 
 function Root() {
   return (
@@ -39,7 +42,7 @@ export const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { path: "/", element: <Home /> },
-          { path: "/projects/import", element: lazyEl(<ImportPage />) },
+          { path: "/projects/import", element: signedIn(<ImportPage />) },
           { path: "/:slug", element: <ModulePage /> },
           { path: "*", element: <NotFound /> },
         ],
@@ -50,11 +53,11 @@ export const router = createBrowserRouter([
           { path: "/geoportal", element: <Suspense fallback={null}><GeoPortalPage /></Suspense> },
           { path: "/analytics", element: <Suspense fallback={null}><GisWorkspacePage /></Suspense> },
           // Projects: list + map, onboarding wizard, project workspace (full height).
-          { path: "/projects", element: lazyEl(<ProjectListPage />) },
-          { path: "/projects/review", element: lazyEl(<ProjectListPage tab="review" />) },
-          { path: "/projects/new", element: lazyEl(<ProjectWizard />) },
-          { path: "/projects/:code/edit", element: lazyEl(<ProjectWizard />) },
-          { path: "/projects/:code", element: lazyEl(<ProjectDetailPage />) },
+          { path: "/projects", element: signedIn(<ProjectListPage />) },
+          { path: "/projects/review", element: signedIn(<ProjectListPage tab="review" />) },
+          { path: "/projects/new", element: signedIn(<ProjectWizard />) },
+          { path: "/projects/:code/edit", element: signedIn(<ProjectWizard />) },
+          { path: "/projects/:code", element: signedIn(<ProjectDetailPage />) },
           // Old addresses
           { path: "/geo-portal", element: <Navigate to="/geoportal" replace /> },
           { path: "/geo-portal/classic", element: <Navigate to="/geoportal" replace /> },

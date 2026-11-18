@@ -6234,3 +6234,142 @@ html.dark .maplibregl-popup-anchor-right:has(.vector-control-popup) .maplibregl-
 .geida-bm.is-on img {
   border-color: #2f8f4e;
 }
+
+/* ==========================================================================
+   GEIDA: side panels as in the project workspace (.pw-rail / .pw-panel in
+   src/features/projects/projects.css): a 76px sand rail with the icon above
+   its label and a green edge on the open entry, a fixed-width panel with a
+   bold title, square controls.
+   ========================================================================== */
+@media (min-width: 768px) {
+  .geida-rail {
+    width: 76px;
+    gap: 2px;
+    padding: 8px 0;
+    background: #f5f5f5;
+  }
+  .geida-rail-btn {
+    width: 100%;
+    gap: 4px;
+    padding: 10px 4px;
+    border-radius: 0;
+    border-inline-start: 3px solid transparent;
+    color: #5c5c60;
+  }
+  .geida-rail[data-side="style"] .geida-rail-btn {
+    border-inline-start: 0;
+    border-inline-end: 3px solid transparent;
+  }
+  .geida-rail-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+  .geida-rail-btn:hover {
+    color: #121114;
+    background: rgb(255 255 255 / 0.6);
+  }
+  .geida-rail-btn[aria-pressed="true"] {
+    color: #0b3b47;
+    background: #fff;
+    border-inline-start-color: #2f8f4e;
+  }
+  .geida-rail[data-side="style"] .geida-rail-btn[aria-pressed="true"] {
+    border-inline-end-color: #2f8f4e;
+  }
+  .geida-rail-label {
+    writing-mode: horizontal-tb;
+    rotate: none;
+    transform: none;
+    font-size: 0.72rem;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}
+.geida-panel-head {
+  min-height: 52px;
+  padding-inline: 16px;
+}
+.geida-panel-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #121114;
+}
+
+/* Project layers (GeidaProjectLayers.tsx) */
+.geida-proj-toggle {
+  padding: 10px 16px 6px;
+  color: #0b3b47;
+}
+.geida-proj-body {
+  padding: 0 16px 10px;
+}
+.geida-proj-select {
+  height: 38px;
+  border: 1px solid #e4e4e4;
+  border-radius: 0;
+  padding: 0 10px;
+  font-size: 0.85rem;
+  background: #fff;
+}
+.geida-proj-select:focus-visible {
+  outline: 2px solid #c9a25b;
+  outline-offset: 1px;
+}
+.geida-proj-group {
+  margin-top: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e4e4e4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5c5c60;
+}
+.geida-proj-row {
+  border-radius: 0;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 7px 2px;
+}
+.geida-proj-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #121114;
+}
+.geida-proj-add {
+  height: 28px;
+  border: 1px solid #e4e4e4;
+  border-radius: 0;
+  padding: 0 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #fff;
+  color: #2a2a2e;
+}
+.geida-proj-add:hover:not(:disabled) {
+  border-color: #0b3b47;
+  color: #0b3b47;
+  background: #fff;
+}
+.geida-proj-add.is-on {
+  border-color: #2f8f4e;
+  color: #2f8f4e;
+}
+/* "Added" turns into "Remove" on hover: a second click takes the layer off the map instead of adding a copy. */
+.geida-proj-add.is-on:hover:not(:disabled) {
+  border-color: #c62828;
+  color: #c62828;
+}
+.geida-proj-add.is-on:hover:not(:disabled) svg {
+  display: none;
+}
+.geida-proj-add.is-on:hover:not(:disabled) .geida-proj-add-label {
+  font-size: 0;
+}
+.geida-proj-add.is-on:hover:not(:disabled) .geida-proj-add-label::after {
+  content: "Remove";
+  font-size: 0.75rem;
+}
+
+/* GEIDA: the Basemaps panel lists only key-free basemaps, so its API keys page is hidden. */
+.basemap-control-settings-toggle { display: none !important; }

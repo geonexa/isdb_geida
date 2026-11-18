@@ -9,6 +9,7 @@ Where does water come from and go? Catchments, rivers, surface water, rainfall, 
 | [Catchment from a point](#catchment-from-a-point) | Which land drains to a chosen point (a dam, intake, bridge or road crossing), and how large and steep is it? |
 | [Stream network and order](#stream-network-and-order) | Where do streams run, how long are they by order, and how dense is the drainage? |
 | [Sub-catchments in the area](#sub-catchments-in-the-area) | Which drainage units does the area split into, how large and steep are they, and where does water leave the area? |
+| [WaPOR time series](#wapor-time-series) | How do rainfall, water use and biomass change over time at a point or in each zone? |
 
 ---
 
@@ -276,5 +277,79 @@ Engine: WhiteboxTools 2.4 (University of Guelph, MIT licence).
 - WhiteboxTools (Lindsay 2016), University of Guelph, MIT licence
 
 Source: `backend/analyses/water/sub_basins/`
+
+---
+
+## WaPOR time series
+
+**Question:** How do rainfall, water use and biomass change over time at a point or in each zone?
+
+Reads a FAO WaPOR v3 level 1 layer (global, 300 m; rainfall about 5 km and reference evapotranspiration about 30 km) for every dekad, month or year in the chosen years. For a point, it gives the value of the pixel under it over time; for polygons (the area of influence, its administrative units or one of the project's polygon layers, such as fields or sub-basins), the mean of each polygon over time. Reports the series as a chart and a table, the mean map of the period, and the trend per year.
+
+### Settings
+
+| Setting | Type | Default | Options |
+|---|---|---|---|
+| Data | choice | AETI | Precipitation (mm); Reference evapotranspiration (mm); Actual evapotranspiration and interception (mm); Transpiration (mm); Evaporation (mm); Interception (mm); Net primary production (gC/m²); Total biomass production (kg/ha); Gross biomass water productivity (kg/m³); Net biomass water productivity (kg/m³); Relative soil moisture (%) |
+| Time step | choice | M | Dekadal (10 days); Monthly; Annual |
+| From year | number | 2020 | 2018–2026 |
+| To year | number | 2024 | 2018–2026 |
+| Where | choice | area | A point on the map; The area of influence; Administrative units in the area; Polygons from a project layer (fields, sub-basins…) |
+| Point | point | — | picked on the map |
+| Units | choice | 2 | Province / region (level 1); District (level 2); Sub-district (level 3) |
+| Polygon layer | layer | — |  |
+
+### Workflow
+
+1. **periods**: the WaPOR mapset for the data and time step (e.g. L1-AETI-M), its published periods in the chosen years
+2. **read**: for each period, only the window around the point or polygons, from FAO's cloud-optimised GeoTIFFs (scale factor applied, no-data removed); windows are cached
+3. **zonal**: mean of the pixels whose centre falls in each polygon (all touched pixels for polygons smaller than a pixel); a point takes the pixel it falls in
+4. **trend**: Sen's slope per year with the Mann-Kendall test, on yearly means (yearly values for an annual step)
+
+### Method
+
+1. **Periods.** The WaPOR mapset for the data and time step (e.g. `L1-AETI-M`) and the periods FAO has published
+   in the chosen years (WaPOR v3 starts in 2018; up to 220 periods per run, about six years of dekads).
+2. **Place.** A point picked on the map; the area of influence; its administrative units (GADM, clipped to the
+   area); or the polygons of one of the project's layers (an analysis or Toolbox result such as fields or
+   sub-basins, up to 200 polygons).
+3. **Reading.** For each period, only the window around the point or polygons is read (scale factor applied,
+   no-data removed), several files at a time. Windows are cached, so a second run on the same place is fast.
+4. **Values.** A point takes the pixel it falls in. A polygon takes the mean of the pixels whose centre lies in
+   it; a polygon smaller than a pixel takes every pixel it touches. Pixels are not weighted by area (at 300 m the
+   difference is negligible).
+5. **Trend.** Sen's slope per year with the Mann-Kendall test (significant when p < 0.05), on yearly means for
+   dekadal and monthly steps (only years with nearly all periods) and on the yearly values for an annual step.
+6. **Mean map.** The mean of all periods per pixel, inside the polygons.
+
+### Outputs
+
+- Mean, highest and lowest value over the period and the trend per year (for several polygons: the mean of the
+  polygon means).
+- A chart of the series (one line per polygon, the first 12) and a table of all values; a CSV of every value.
+- A summary per polygon: mean, lowest, highest, trend and whether it is significant.
+- The mean map of the period, and the point or polygons as a layer with their mean.
+
+### Data sources and licences
+
+FAO WaPOR v3, **level 1** (global), read from FAO's cloud-optimised GeoTIFFs. Values are as FAO publishes them:
+dekadal layers give the mean per day over the dekad (e.g. mm/day), monthly and annual layers the total.
+
+| Data | Dekadal | Monthly | Annual | Resolution |
+|---|---|---|---|---|
+| Precipitation (CHIRPS) | ✓ | ✓ | ✓ | about 5 km |
+| Reference evapotranspiration | ✓ | ✓ | ✓ | about 30 km |
+| Actual evapotranspiration and interception (AETI) | ✓ | ✓ | ✓ | 300 m |
+| Transpiration, evaporation, interception | ✓ | | ✓ | 300 m |
+| Net primary production | ✓ | ✓ | | 300 m |
+| Total biomass production | | | ✓ | 300 m |
+| Gross and net biomass water productivity | | | ✓ | 300 m |
+| Relative soil moisture | ✓ | | | 300 m |
+
+### Citations
+
+- FAO WaPOR v3, level 1 (global), FAO 2024, CC BY 4.0
+
+Source: `backend/analyses/water/wapor_series/`
 
 ---

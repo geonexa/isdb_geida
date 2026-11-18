@@ -200,6 +200,8 @@ const SECTION_ITEMS: Array<{
 const SECTION_GATE: Partial<Record<SettingsSection, string>> = {
   map: "settings.mapPreferences",
   geocoding: "settings.geocoding",
+  // GEIDA: the AI Providers section follows its menu item (hidden by deployment.json).
+  ai: "settings.ai",
   environment: "settings.environment",
   cloudStorage: "settings.cloudStorage",
 };
@@ -236,9 +238,7 @@ export function SettingsDialog({
   // follows, so the two can never disagree about what the checkbox should say.
   const rightPanelState = useRightPanelState();
   const browserPanelOpen = rightPanelState.visibleIds.includes(BROWSER_PANEL_ID);
-  const commentsPanelOpen = rightPanelState.visibleIds.includes(COMMENTS_PANEL_ID);
   const toggleBrowserPanel = (show: boolean) => applyRightPanelVisibility(BROWSER_PANEL_ID, show);
-  const toggleCommentsPanel = (show: boolean) => applyRightPanelVisibility(COMMENTS_PANEL_ID, show);
   // A field a deep-link asked us to focus once its section renders; cleared
   // after the focus lands so a later open without a focus request stays put.
   const [pendingFocus, setPendingFocus] = useState<SettingsFocusTarget | null>(null);
@@ -711,13 +711,7 @@ export function SettingsDialog({
               >
                 {t("settings.layout.showBrowserPanel")}
               </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={commentsPanelOpen}
-                onCheckedChange={(checked: boolean) => toggleCommentsPanel(checked === true)}
-                onSelect={(event: Event) => event.preventDefault()}
-              >
-                {t("settings.layout.showCommentsPanel")}
-              </DropdownMenuCheckboxItem>
+              {/* GEIDA: no Comments panel, so no toggle for it. */}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => {

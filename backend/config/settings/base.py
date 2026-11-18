@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "apps.projects",
     "apps.analysis",
     "apps.toolbox",
+    "apps.reports",
     "apps.reference",
 ]
 

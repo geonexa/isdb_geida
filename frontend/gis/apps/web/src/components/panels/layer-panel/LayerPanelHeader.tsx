@@ -50,8 +50,8 @@ export function LayerPanelHeader({
   const setIdentifyLayer = useAppStore((s) => s.setIdentifyLayer);
   const [compactLayerList, setCompactLayerList] = useCompactLayerList();
   return (
-    <div className="flex items-center justify-between border-b px-3 py-1.5">
-      <span className="text-sm font-semibold">{t("sharedRail.layers")}</span>
+    <div className="geida-panel-head flex items-center justify-between border-b px-3 py-1.5">
+      <span className="geida-panel-title text-sm font-semibold">{t("sharedRail.layers")}</span>
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"

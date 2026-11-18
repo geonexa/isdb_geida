@@ -1,6 +1,6 @@
 import type * as maplibregl from "maplibre-gl";
-import { BadgeCheck, CheckCircle2, ChevronLeft, FileText, FlaskConical, History, LayoutDashboard, Pencil, Send, Target, Trash2, Undo2, Wrench } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { BadgeCheck, CheckCircle2, ChevronLeft, FileBarChart, FileText, FlaskConical, History, LayoutDashboard, MoreVertical, Pencil, Send, Target, Trash2, Undo2, Wrench } from "lucide-react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api, ApiError } from "@/shared/api/client";
@@ -14,14 +14,15 @@ import { legendSwatches } from "@/features/projects/vectorStyle";
 import { label, StatusChip, useMeta, useProject, useSetProject } from "@/features/projects/data";
 import { ProjectMap } from "@/features/projects/ProjectMap";
 import type { Evidence, PointPicker, Project, RunOutput } from "@/features/projects/types";
-import { AnalysesTab, type AnalysesView } from "@/features/projects/workspace/AnalysesTab";
+import { AnalysesTab } from "@/features/projects/workspace/AnalysesTab";
 import { ACTIVE, fileUrl, STAGE_PHASE, useEvidence, useReviewEvidence, useRun, useRuns } from "@/features/projects/workspace/data";
 import { LayerPanel, TableDrawer } from "@/features/projects/workspace/MapOverlays";
-import { DataLayers, effectiveLegend, isVectorTiles, legendNumber, useSatelliteLayers, useSatelliteTiles, type SatState } from "@/features/projects/workspace/satellite";
+import { LayerList, effectiveLegend, isVectorTiles, legendNumber, useSatelliteLayers, useSatelliteTiles, type SatState } from "@/features/projects/workspace/satellite";
 import type { TableOut } from "@/features/projects/workspace/RunParts";
 import { useToolResults } from "@/features/projects/workspace/toolResults";
 import { ToolboxView } from "@/features/toolbox/ToolboxView";
 import { ActivityTab, DocumentsTab, EvidenceTab, OverviewTab, ResultsTab } from "@/features/projects/workspace/Tabs";
+import { ReportsTab } from "@/features/projects/workspace/ReportsTab";
 
 // The export composer (and GeoLibre's print engine behind it) loads on first use.
 const PrintDialog = lazy(() => import("@/features/print/PrintDialog"));
@@ -32,6 +33,7 @@ const TABS = [
   { id: "analyses", label: "Analyses", icon: FlaskConical },
   { id: "toolbox", label: "Toolbox", icon: Wrench },
   { id: "evidence", label: "Evidence", icon: BadgeCheck },
+  { id: "reports", label: "Reports", icon: FileBarChart },
   { id: "documents", label: "Documents", icon: FileText },
   { id: "activity", label: "Activity", icon: History },
 ] as const;
@@ -62,6 +64,10 @@ export default function ProjectDetailPage() {
   return <Workspace p={q.data} params={params} setParam={setParam} meta={meta.data} />;
 }
 
+/** A tile URL template for another period (GEIDA's tile route carries it as ?year=). */
+const withPeriod = (url: string, y: number | string) =>
+  /[?&]year=/.test(url) ? url.replace(/([?&]year=)[^&]*/, `$1${encodeURIComponent(String(y))}`) : url;
+
 function Workspace({ p, params, setParam, meta }: {
   p: Project; params: URLSearchParams; setParam: (patch: Record<string, string | null>) => void; meta: ReturnType<typeof useMeta>["data"];
 }) {
@@ -70,11 +76,9 @@ function Workspace({ p, params, setParam, meta }: {
   const evidence = useEvidence(p.code);
   const reviewEv = useReviewEvidence(p.code);
 
-  // The old Data catalog tab now lives in Analyses (?tab=analyses&view=data).
+  // The old Data catalog tab: its layers are now listed in the Analyses categories.
   const tabParam = params.get("tab") === "satellite" ? "analyses" : params.get("tab");
   const tab = (TABS.some((t) => t.id === tabParam) ? tabParam : "overview") as TabId;
-  const viewParam = params.get("view");
-  const view: AnalysesView = params.get("tab") === "satellite" || viewParam === "data" ? "data" : "modules";
   // The toolbox stays mounted once opened (engine, inputs and run history survive tab changes).
   const [toolboxSeen, setToolboxSeen] = useState(tab === "toolbox");
   if (tab === "toolbox" && !toolboxSeen) setToolboxSeen(true);
@@ -108,6 +112,8 @@ function Workspace({ p, params, setParam, meta }: {
   const rasters = satTiles.filter((t) => t.query.data).map((t) => ({
     id: t.id, tiles: t.query.data!.tiles.map((u) => (u.startsWith("/") ? window.location.origin + u : u)), opacity: t.opacity,
     attribution: t.query.data!.attribution, minzoom: t.query.data!.minzoom, maxzoom: t.query.data!.maxzoom ?? undefined,
+    // Next frames of a playing time series: the same tile route with another period.
+    preload: (t.preload ?? []).map((y) => t.query.data!.tiles.map((u) => withPeriod(u.startsWith("/") ? window.location.origin + u : u, y))),
   }));
   const satErrors = Object.fromEntries(satTiles.filter((t) => t.query.error).map((t) => [t.id, (t.query.error as Error).message]));
   // Loading = fetching the tile URL, or the map still drawing that layer's tiles.
@@ -216,12 +222,9 @@ function Workspace({ p, params, setParam, meta }: {
             <AnalysesTab project={p} meta={meta} phase={phase} setPhase={(v) => setParam({ phase: v })}
               query={params.get("q") ?? ""} setQuery={(v) => setParam({ q: v })}
               runId={runId} openRun={openRun} onReview={review} onOpenTable={setTable} picker={picker}
-              view={view} setView={(v) => setParam({ view: v === "modules" ? null : v, ...(params.get("tab") === "satellite" ? { tab: "analyses" } : {}) })}
-              dataCount={Object.keys(sat).length}
-
-              dataLayers={satGroups.length === 0 ? <p className="muted">Loading the data layers…</p>
-                : <DataLayers code={p.code} groups={satGroups} on={sat} setOn={setSat} errors={satErrors} loading={satLoading} phase={phase} />} />
-          ) : <p className="muted">Analyses and data layers need an area of influence. {p.permissions.can_edit && <Link className="text-link" to={`/projects/${p.code}/edit`}>Add one</Link>}</p>)}
+              layers={satLayers}
+              renderLayers={(ls) => <LayerList code={p.code} layers={ls} on={sat} setOn={setSat} errors={satErrors} loading={satLoading} />} />
+          ) : <p className="muted">Analyses need an area of influence. {p.permissions.can_edit && <Link className="text-link" to={`/projects/${p.code}/edit`}>Add one</Link>}</p>)}
           {tab === "toolbox" && !p.area && <p className="muted">The toolbox works on the area of influence. {p.permissions.can_edit && <Link className="text-link" to={`/projects/${p.code}/edit`}>Add one</Link>}</p>}
           {toolboxSeen && p.area && (
             <div hidden={tab !== "toolbox"}>
@@ -230,6 +233,7 @@ function Workspace({ p, params, setParam, meta }: {
             </div>
           )}
           {tab === "evidence" && <EvidenceTab items={evidence.data ?? []} meta={meta} canReview={canReview} onReview={review} onOpenRun={(id) => openRun(id)} />}
+          {tab === "reports" && <ReportsTab p={p} />}
           {tab === "documents" && <DocumentsTab p={p} meta={meta} />}
           {tab === "activity" && <ActivityTab p={p} />}
           </div>
@@ -242,6 +246,9 @@ function Workspace({ p, params, setParam, meta }: {
               styles={styles} setStyles={setStyles} satLayers={satLayers.filter((l) => sat[l.id])} sat={sat} setSat={setSat} satLoading={satLoading}
               tools={tools.layers} onToolPatch={tools.patch} onToolRemove={tools.remove} />
             {table && <TableDrawer table={table} onClose={() => setTable(null)} />}
+            {satLayers.filter((l) => sat[l.id]?.series && rasters.some((r) => r.id === l.id)).map((l) => (
+              <div key={l.id} className="pmap-date" aria-live="polite"><span>{l.name}</span><strong>{String(sat[l.id].year ?? "")}</strong></div>
+            ))}
           </ProjectMap>
           {printing && mapRef && (
             <Suspense fallback={null}>
@@ -252,6 +259,41 @@ function Workspace({ p, params, setParam, meta }: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The ⋮ menu of project actions (edit, submit, return, publish, delete); hidden when the user can do none. */
+function ActionsMenu({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const items = React.Children.toArray(children).filter(Boolean);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    box.current?.querySelector<HTMLElement>("[role=menuitem]:not([disabled])")?.focus();
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  if (!items.length) return null;
+  return (
+    <div className="pw-menu" ref={box} onClick={(e) => { if ((e.target as HTMLElement).closest("[role=menuitem]")) setOpen(false); }}>
+      <button type="button" className="icon-btn icon-btn-xs pw-menu-btn" aria-haspopup="menu" aria-expanded={open} aria-label="Project actions" title="Project actions"
+        onClick={() => setOpen((v) => !v)}><MoreVertical aria-hidden="true" /></button>
+      {open && <div className="pw-menu-list" role="menu" aria-label="Project actions">{items}</div>}
+    </div>
+  );
+}
+
+function MenuButton({ icon: Icon, danger, disabled, hint, onClick, children }: {
+  icon: React.ComponentType<{ "aria-hidden"?: boolean | "true" }>; danger?: boolean; disabled?: boolean; hint?: string; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button type="button" role="menuitem" className={`pw-menu-item${danger ? " is-danger" : ""}`} disabled={disabled} title={hint || undefined} onClick={onClick}>
+      <Icon aria-hidden="true" /><span>{children}{disabled && hint && <small>{hint}</small>}</span>
+    </button>
   );
 }
 
@@ -287,19 +329,19 @@ function Header({ p, meta }: { p: Project; meta: ReturnType<typeof useMeta>["dat
   return (
     <header className="pw-head">
       <div className="pw-head-title">
-        <p>
+        <div className="pw-head-line">
           <Link className="icon-btn icon-btn-xs" to="/projects" aria-label="Back to projects" title="Projects"><ChevronLeft aria-hidden="true" /></Link>
           <span className="pw-code">{p.code}</span><StatusChip status={p.status} />
-        </p>
+          <ActionsMenu>
+            {perms.can_edit && <Link role="menuitem" className="pw-menu-item" to={`/projects/${p.code}/edit`}><Pencil aria-hidden="true" />Edit project</Link>}
+            {perms.can_submit && <MenuButton icon={Send} disabled={busy || p.missing_to_submit.length > 0} hint={p.missing_to_submit.length ? "Complete the project first" : ""} onClick={() => act("submit")}>Submit for review</MenuButton>}
+            {perms.can_return && <MenuButton icon={Undo2} disabled={busy} onClick={() => setReturning((v) => !v)}>Return to owner</MenuButton>}
+            {perms.can_publish && <MenuButton icon={CheckCircle2} disabled={busy || p.missing_to_submit.length > 0} hint={p.missing_to_submit.length ? "Complete the project first" : ""} onClick={() => act("publish")}>Publish</MenuButton>}
+            {perms.can_delete && <MenuButton icon={Trash2} danger onClick={remove}>Delete draft</MenuButton>}
+          </ActionsMenu>
+        </div>
         <h1 title={p.title}>{p.title}</h1>
         <p className="muted small">{p.country_name} · {label(meta?.sectors, p.sector) || "Sector not set"} · {p.stage ? label(meta?.stages, p.stage) : "Stage not set"}</p>
-      </div>
-      <div className="pw-head-actions">
-        {perms.can_edit && <Link className="btn btn-outline btn-sm" to={`/projects/${p.code}/edit`}><Pencil aria-hidden="true" />Edit</Link>}
-        {perms.can_submit && <button className="btn btn-dark btn-sm" disabled={busy || p.missing_to_submit.length > 0} onClick={() => act("submit")}><Send aria-hidden="true" />Submit for review</button>}
-        {perms.can_return && <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => setReturning((v) => !v)}><Undo2 aria-hidden="true" />Return</button>}
-        {perms.can_publish && <button className="btn btn-dark btn-sm" disabled={busy || p.missing_to_submit.length > 0} onClick={() => act("publish")}><CheckCircle2 aria-hidden="true" />Publish</button>}
-        {perms.can_delete && <button className="icon-btn" aria-label="Delete draft" title="Delete draft" onClick={remove}><Trash2 aria-hidden="true" /></button>}
       </div>
       {returning && (
         <form className="return-box pw-return" onSubmit={(e) => { e.preventDefault(); act("return", { comment }); }}>

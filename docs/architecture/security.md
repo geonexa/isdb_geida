@@ -11,9 +11,11 @@
 
 ## Authorisation
 
-- Project visibility follows its status (draft, under review, published) and the user's
-  role; see [Users and roles](../introduction/roles.md). The same rules guard every
-  project endpoint, including run files and data-catalog downloads.
+- Projects are for signed-in users only: every project endpoint answers visitors with 401 ("sign in"), and
+  the project pages send them to sign in. Among signed-in users, visibility follows the project's status
+  (draft, under review, published) and the user's role; see [Users and roles](../introduction/roles.md). The
+  same rules (`apps/projects/access.py`) guard every project endpoint, including analysis runs and their
+  files, evidence, the Toolbox, map layouts and data-catalog downloads.
 - The Analytics workspace can be limited to analysts by giving its section roles in
   `backend/apps/core/modules.py`;
   it is open to everyone today.

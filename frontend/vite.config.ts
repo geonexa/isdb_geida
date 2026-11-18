@@ -74,14 +74,19 @@ function gisPublic(): Plugin {
   };
 }
 
+// import.meta.env.BASE_URL, also written with a TypeScript cast as in GeoLibre's deployment.json and
+// admin-profile.json loaders: `(import.meta as ImportMeta & {...}).env?.BASE_URL`.
+const BASE_URL_RE = /\(import\.meta as [^)]*\)\.env\??\.BASE_URL|import\.meta\.env\.BASE_URL/g;
+
 /** GeoLibre code: BASE_URL -> the /gis-assets/ folder its static files are served from. */
 function gisBaseUrl(): Plugin {
   return {
     name: "geida-gis-base-url",
     enforce: "pre",
     transform(code, id) {
-      if (!id.startsWith(GIS_DIR) || id.includes("node_modules") || !code.includes("import.meta.env.BASE_URL")) return null;
-      return { code: code.replaceAll("import.meta.env.BASE_URL", `(import.meta.env.BASE_URL + "${GIS_PUBLIC_URL.slice(1)}/")`), map: null };
+      if (!id.startsWith(GIS_DIR) || id.includes("node_modules") || !BASE_URL_RE.test(code)) return null;
+      BASE_URL_RE.lastIndex = 0;
+      return { code: code.replace(BASE_URL_RE, `(import.meta.env.BASE_URL + "${GIS_PUBLIC_URL.slice(1)}/")`), map: null };
     },
   };
 }

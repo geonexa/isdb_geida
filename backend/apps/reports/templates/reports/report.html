@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ report.title }} · {{ project.code }}</title>
+<meta name="author" content="{{ report.author }}">
+<meta name="description" content="{{ project.code }} {{ project.title }}: {{ report.subtitle }}">
+<meta name="generator" content="GEIDA (IsDB Geoinformatics Data Platform)">
+<style>{{ css|safe }}</style>
+{% if map_css %}<style>{{ map_css|safe }}</style>{% endif %}
+</head>
+<body class="mode-{{ mode }}">
+
+{% if mode == "web" %}
+<header class="web-bar">
+  <div class="web-bar-title"><strong>{{ report.title }}</strong><span>{{ project.code }} · {{ project.title }}</span></div>
+  {% if status %}<span class="web-status">{{ status }}</span>{% endif %}
+  {% if pdf_url %}<a class="web-btn" href="{{ pdf_url }}" target="_blank" rel="noopener">Open PDF</a>{% endif %}
+</header>
+<nav class="web-toc" aria-label="Contents">
+  <p>Contents</p>
+  <ol>
+    <li><a href="#summary">Summary</a></li>
+    {% if options.project %}<li><a href="#project">The project</a></li>{% endif %}
+    {% for s in sections %}<li><a href="#run-{{ s.run }}"><i style="background:{{ s.color }}"></i>{{ s.title }}</a></li>{% endfor %}
+    {% if options.annex %}<li><a href="#annex">Annex</a></li>{% endif %}
+  </ol>
+</nav>
+{% endif %}
+
+<main class="doc">
+
+<section class="cover">
+  <div class="cover-band">
+    <div class="cover-logos"><img src="{{ isdb_logo }}" alt="Islamic Development Bank"><img src="{{ geida_logo }}" alt="GEIDA"></div>
+    <p class="cover-kicker">{{ project.code }} · {{ project.country }}</p>
+    <h1 class="cover-title">{{ report.title }}</h1>
+    {% if report.subtitle %}<p class="cover-subtitle">{{ report.subtitle }}</p>{% endif %}
+    <p class="cover-project">{{ project.title }}</p>
+  </div>
+  {% if area_map %}
+  <figure class="cover-map"{% if imaps.base.area %} data-imap="cover"{% endif %}>{% if imaps.base.area %}<div class="imap" hidden></div>{% if cover_globe %}<div class="imap-globe" hidden>{{ cover_globe|safe }}</div>{% endif %}{% endif %}<div class="smap">{{ area_map|safe }}</div><figcaption>Area of influence{% if project.area %}: {{ project.area.km2|floatformat:"0" }} km²{% endif %}</figcaption></figure>
+  {% endif %}
+  <dl class="cover-meta">
+    <div><dt>Date</dt><dd>{{ report.date }}</dd></div>
+    {% if report.author %}<div><dt>Prepared by</dt><dd>{{ report.author }}</dd></div>{% endif %}
+    <div><dt>Analyses</dt><dd>{{ sections|length }}</dd></div>
+    <div><dt>Produced with</dt><dd>GEIDA, IsDB Geoinformatics Data Platform</dd></div>
+  </dl>
+</section>
+
+{% if mode == "pdf" %}
+<section class="toc">
+  <h2 class="toc-title">Contents</h2>
+  <ol>
+    <li><a href="#summary">Summary</a></li>
+    {% if options.project %}<li><a href="#project">The project</a></li>{% endif %}
+    {% for s in sections %}<li><a href="#run-{{ s.run }}">{{ forloop.counter }}. {{ s.title }}</a></li>{% endfor %}
+    {% if options.annex %}<li><a href="#annex">Annex</a></li>{% endif %}
+  </ol>
+</section>
+{% endif %}
+
+<section class="chapter" id="summary">
+  <h2 class="chapter-title">Summary</h2>
+  {% if report.summary %}<div class="lead">{{ report.summary|linebreaks }}</div>{% endif %}
+  {% if key_figures %}
+  <div class="cards">
+    {% for k in key_figures %}
+    <div class="card"><span class="card-value">{{ k.value }}{% if k.unit %} <small>{{ k.unit }}</small>{% endif %}</span><span class="card-label">{{ k.label }}</span><span class="card-src">{{ k.section }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if sections %}
+  <h3>Findings by analysis</h3>
+  <ul class="findings">
+    {% for s in sections %}<li><a href="#run-{{ s.run }}"><strong>{{ s.title }}.</strong></a> {{ s.summary|default:s.question }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No analyses are included in this report yet.</p>
+  {% endif %}
+</section>
+
+{% if options.project %}
+<section class="chapter" id="project">
+  <h2 class="chapter-title">The project</h2>
+  <div class="two-col">
+    <table class="facts"><tbody>
+      {% for f in project.facts %}<tr><th>{{ f.label }}</th><td>{{ f.value }}</td></tr>{% endfor %}
+      {% if project.area %}<tr><th>Area of influence</th><td>{{ project.area.km2|floatformat:"0" }} km² ({{ project.area.method|lower }})</td></tr>{% endif %}
+    </tbody></table>
+    {% if project.components %}
+    <div>
+      <h3>Components</h3>
+      <ol class="components">{% for c in project.components %}<li><strong>{{ c.name }}</strong>{% if c.description %}: {{ c.description }}{% endif %}</li>{% endfor %}</ol>
+    </div>
+    {% endif %}
+  </div>
+  {% if project.indicators %}
+  <h3>Results framework</h3>
+  <table class="data">
+    <thead><tr><th>Level</th><th>Indicator</th><th>Baseline</th><th>Target</th><th>GEIDA evidence (accepted)</th></tr></thead>
+    <tbody>{% for i in project.indicators %}
+      <tr><td>{{ i.level }}</td><td>{{ i.statement }}{% if i.unit %} <span class="muted">({{ i.unit }})</span>{% endif %}{% if i.cri %} <span class="tag">{{ i.cri }}</span>{% endif %}</td><td class="num">{{ i.baseline|default:"–" }}</td><td class="num">{{ i.target|default:"–" }}</td><td>{{ i.evidence|default:"–" }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</section>
+{% endif %}
+
+{% for s in sections %}
+<section class="chapter analysis" id="run-{{ s.run }}" style="--cat: {{ s.color }}">
+  <p class="cat"><i></i>{{ s.category }}</p>
+  <h2 class="chapter-title">{{ forloop.counter }}. {{ s.title }}</h2>
+  {% if s.question %}<p class="question">{{ s.question }}</p>{% endif %}
+  {% if s.note %}<aside class="callout"><strong>Note</strong>{{ s.note|linebreaks }}</aside>{% endif %}
+  {% if s.metrics %}
+  <div class="cards">{% for m in s.metrics %}<div class="card"><span class="card-value">{{ m.value }}{% if m.unit %} <small>{{ m.unit }}</small>{% endif %}</span><span class="card-label">{{ m.label }}</span>{% if m.note %}<span class="card-src">{{ m.note }}</span>{% endif %}</div>{% endfor %}</div>
+  {% endif %}
+  {% if s.summary %}<p class="run-summary">{{ s.summary }}</p>{% endif %}
+  {% for mp in s.maps %}
+  <figure class="map"{% if map_js and mp.web %} data-imap="{{ mp.no }}"{% endif %}>
+    {% if map_js and mp.web %}<div class="imap" hidden></div>{% endif %}
+    <div class="smap">{{ mp.svg|safe }}</div>
+    {% if mp.legend %}<ul class="legend">{% for l in mp.legend %}<li><i class="k-{{ l.kind }}" style="--c: {{ l.color }}"></i>{{ l.label }}</li>{% endfor %}</ul>{% endif %}
+    <figcaption><strong>Figure {{ mp.no }}.</strong> {{ mp.title }}{% if mp.unit %} ({{ mp.unit }}){% endif %}{% if mp.res %}, {{ mp.res|floatformat:"0" }} m cells{% endif %}. Area of influence outlined.</figcaption>
+    {% if map_js and mp.web %}<p class="map-note">Interactive: drag to pan, use + and − or click then scroll to zoom{% if mp.web.kind == "vector" %}, click a feature for its details{% endif %}. The panel switches the basemap and layers and sets the opacity.</p>{% endif %}
+  </figure>
+  {% endfor %}
+  {% for c in s.charts %}
+  <figure class="map chart-figure">
+    {{ c.svg|safe }}
+    {% if c.legend %}<ul class="legend">{% for l in c.legend %}<li><i class="k-line" style="--c: {{ l.color }}"></i>{{ l.label }}</li>{% endfor %}</ul>{% endif %}
+    <figcaption><strong>Figure {{ c.no }}.</strong> {{ c.title }}{% if c.unit %} ({{ c.unit }}){% endif %}.{% if c.note %} {{ c.note }}{% endif %}</figcaption>
+  </figure>
+  {% endfor %}
+  {% for t in s.tables %}
+  <div class="table-block">
+    <h3>{{ t.title }}</h3>
+    {% if t.chart %}<div class="chart">{{ t.chart|safe }}</div>{% endif %}
+    <table class="data">
+      <thead><tr>{% for c in t.columns %}<th{% if c.num %} class="num"{% endif %}>{{ c.label }}{% if c.unit %} <span class="unit">({{ c.unit }})</span>{% endif %}</th>{% endfor %}</tr></thead>
+      <tbody>{% for r in t.rows %}<tr>{% for v in r %}<td{% if v.num %} class="num"{% endif %}>{{ v.v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+    {% if t.more %}<p class="small muted">{{ t.more }} more rows in the GEIDA run.</p>{% endif %}
+    {% if t.note %}<p class="small muted">{{ t.note }}</p>{% endif %}
+  </div>
+  {% endfor %}
+  <div class="about-run">
+    <div>
+      <h4>How it was done</h4>
+      {% if s.description %}<p>{{ s.description }}</p>{% endif %}
+      {% if s.params %}<table class="facts small"><tbody>{% for pr in s.params %}<tr><th>{{ pr.label }}</th><td>{{ pr.value }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+    </div>
+    <div>
+      <h4>Data</h4>
+      <ul class="sources">{% for d in s.datasets %}<li><strong>{{ d.title }}</strong>{% if d.resolution %}, {{ d.resolution }}{% endif %}{% if d.date %} ({{ d.date }}){% endif %}</li>{% empty %}<li class="muted">Project data only.</li>{% endfor %}</ul>
+      <p class="small muted">GEIDA run #{{ s.run }}, {{ s.date }}, analysis version {{ s.version }}.</p>
+    </div>
+  </div>
+  {% if s.method_html %}<div class="method"><h4>Method</h4>{{ s.method_html|safe }}</div>{% endif %}
+</section>
+{% endfor %}
+
+{% if options.annex %}
+<section class="chapter" id="annex">
+  <h2 class="chapter-title">Annex</h2>
+  {% if datasets %}
+  <h3>Data sources</h3>
+  <table class="data">
+    <thead><tr><th>Dataset</th><th>Resolution</th><th>Date of data</th><th>Source and licence</th></tr></thead>
+    <tbody>{% for d in datasets %}<tr><td>{{ d.title }}</td><td>{{ d.resolution|default:"–" }}</td><td>{{ d.date|default:"–" }}</td><td>{{ d.citation }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+  <h3>About this report</h3>
+  <p>This report was generated with GEIDA, the IsDB Geoinformatics Data Platform, on {{ report.date }}{% if report.generated_by %} by {{ report.generated_by }}{% endif %}. Each analysis section comes from a recorded GEIDA run (number, date, settings and data are given with it), computed for the project's area of influence. Figures are copied into the report when it is generated, so later changes to the project or its runs don't change this version.</p>
+  <p>Maps: {{ area_map_attribution }}. Map projection Web Mercator; scale bars are true at the map's centre.</p>
+  <p class="small muted">Values from satellite and global datasets are estimates with the resolution and dates stated; check them against local information before using them for decisions. Boundaries shown do not imply any judgement by the Islamic Development Bank on the legal status of any territory.</p>
+</section>
+{% endif %}
+
+</main>
+{% if map_js %}{{ imaps|json_script:"geida-maps" }}
+<script>{{ map_js|safe }}</script>{% endif %}
+</body>
+</html>

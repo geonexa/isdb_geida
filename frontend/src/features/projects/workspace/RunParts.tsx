@@ -1,11 +1,99 @@
 import { CircleAlert, CircleCheck, Clock, Download, LoaderCircle, MapPin, Play, Plus, Table2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+
+import { api } from "@/shared/api/client";
 
 import { label } from "@/features/projects/data";
-import type { CriteriaLayer, Criterion, DatasetInfo, Evidence, Meta, ModuleInfo, ModuleParam, PointPicker, Run, RunOutput } from "@/features/projects/types";
+import type { CriteriaLayer, Criterion, DatasetInfo, Evidence, Meta, ModuleInfo, ModuleParam, ParamWhen, PointPicker, Run, RunOutput } from "@/features/projects/types";
 import { ACTIVE, fileUrl, fmtNum } from "@/features/projects/workspace/data";
 
 export type TableOut = Extract<RunOutput, { type: "table" }>;
+export type ChartOut = Extract<RunOutput, { type: "chart" }>;
+
+/** Series colours: distinct in light and dark (teal, gold, then a categorical set). */
+const SERIES_COLORS = ["#0B3B47", "#C9A25B", "#2F8F4E", "#B5527A", "#2B7BB9", "#D9822B", "#5B5F97", "#3E7C7B", "#8C6D46", "#7A9A01", "#A23B72", "#6C757D"];
+
+const niceStep = (span: number, n: number) => {
+  const raw = span / Math.max(1, n);
+  const p = 10 ** Math.floor(Math.log10(raw || 1));
+  return [1, 2, 2.5, 5, 10].map((k) => k * p).find((k) => k >= raw) ?? raw;
+};
+
+/** A time series chart (SVG): lines with gaps for missing values, or bars for one annual series; hover shows values. */
+function SeriesChart({ chart }: { chart: ChartOut }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 640, H = 260, L = 52, R = 12, T = 14, B = 44;
+  const xs = chart.series[0]?.points.map((p) => p[0]) ?? [];
+  const all = chart.series.flatMap((s) => s.points.map((p) => p[1])).filter((v): v is number => v != null);
+  if (!xs.length || !all.length) return null;
+  let lo = Math.min(0, ...all), hi = Math.max(...all);
+  if (hi === lo) hi = lo + 1;
+  const step = niceStep(hi - lo, 5);
+  lo = Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Number(v.toFixed(6)));
+  const bar = chart.kind === "bar";
+  const n = xs.length;
+  const xw = (W - L - R) / n;
+  const x = (i: number) => L + xw * (i + 0.5);
+  const y = (v: number) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  const every = Math.max(1, Math.ceil(n / 8));
+  const fmt = (v: number) => (Math.abs(v) >= 100 ? Math.round(v).toLocaleString("en") : String(Number(v.toFixed(2))));
+  const path = (pts: [string, number | null][]) => {
+    let d = "", pen = false;
+    pts.forEach(([, v], i) => {
+      if (v == null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+      pen = true;
+    });
+    return d;
+  };
+  return (
+    <figure className="run-chart">
+      <figcaption>{chart.title}{chart.unit ? <span className="muted"> ({chart.unit})</span> : null}</figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${chart.title}: ${chart.series.length} series over ${n} periods`}
+        onMouseLeave={() => setHover(null)}>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="run-chart-grid" />
+            <text x={L - 6} y={y(t) + 4} textAnchor="end" className="run-chart-tick">{fmt(t)}</text>
+          </g>
+        ))}
+        {xs.map((lab, i) => i % every === 0 && (
+          <text key={lab} x={x(i)} y={H - B + 16} textAnchor="middle" className="run-chart-tick">{lab}</text>
+        ))}
+        {chart.x_label && <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" className="run-chart-axis">{chart.x_label}</text>}
+        {bar ? chart.series[0].points.map(([lab, v], i) => v != null && (
+          <rect key={lab} x={x(i) - xw * 0.35} width={xw * 0.7} y={Math.min(y(v), y(Math.max(lo, 0)))}
+            height={Math.abs(y(v) - y(Math.max(lo, 0)))} fill={SERIES_COLORS[0]} opacity={hover === null || hover === i ? 1 : 0.55} />
+        )) : chart.series.map((s, k) => (
+          <path key={s.name} d={path(s.points)} fill="none" stroke={SERIES_COLORS[k % SERIES_COLORS.length]} strokeWidth={2}
+            strokeLinejoin="round" strokeLinecap="round" />
+        ))}
+        {hover !== null && !bar && chart.series.map((s, k) => s.points[hover]?.[1] != null && (
+          <circle key={s.name} cx={x(hover)} cy={y(s.points[hover][1] as number)} r={3.5} fill={SERIES_COLORS[k % SERIES_COLORS.length]} />
+        ))}
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} className="run-chart-cursor" />}
+        {xs.map((lab, i) => (
+          <rect key={`h-${lab}`} x={L + xw * i} width={xw} y={T} height={H - T - B} fill="transparent" onMouseEnter={() => setHover(i)} />
+        ))}
+      </svg>
+      <div className="run-chart-read" aria-live="polite">
+        {hover !== null ? (
+          <><strong>{xs[hover]}</strong>{chart.series.map((s, k) => (
+            <span key={s.name}><i style={{ background: SERIES_COLORS[k % SERIES_COLORS.length] }} />{chart.series.length > 1 ? `${s.name}: ` : ""}
+              {s.points[hover][1] == null ? "no data" : `${fmt(s.points[hover][1] as number)}${chart.unit ? ` ${chart.unit}` : ""}`}</span>
+          ))}</>
+        ) : chart.series.length > 1 ? chart.series.map((s, k) => (
+          <span key={s.name}><i style={{ background: SERIES_COLORS[k % SERIES_COLORS.length] }} />{s.name}</span>
+        )) : <span className="muted">Point at the chart to read values.</span>}
+      </div>
+      {chart.note && <p className="muted small">{chart.note}</p>}
+    </figure>
+  );
+}
 
 export function RunIcon({ status }: { status: Run["status"] }) {
   if (status === "done") return <CircleCheck className="ri ri-done" aria-label="Done" />;
@@ -26,13 +114,44 @@ export function parsePoint(text: string): [number, number] | null {
 const initial = (p: ModuleParam) => p.type === "point" ? (Array.isArray(p.default) ? fmtPoint(p.default as [number, number]) : "")
   : p.type === "criteria" ? JSON.stringify(p.default ?? []) : String(p.default ?? "");
 
-/** Run form. Point parameters are picked on the project map (each click moves the marker) or typed. */
-export function RunForm({ module, picker, onStart, onCancel }: {
-  module: ModuleInfo; picker?: PointPicker; onStart: (p: Record<string, string>) => void; onCancel: () => void;
+/** Whether a `when` rule holds for the form's values (compared as text). */
+const whenOk = (when: ParamWhen | null | undefined, vals: Record<string, string>) =>
+  !when || Object.entries(when).every(([k, allowed]) => allowed.map(String).includes(vals[k]));
+
+type ProjectLayer = { id: string; title: string; source: string; group: string; kind: string; geometry?: string | null };
+
+/**
+ * Run form. Point parameters are picked on the project map (each click moves the marker) or typed. Parameters
+ * with a `when` rule show only while it holds, and choices with one are offered only then. `layer` parameters
+ * list the project's vector layers (area, analysis and Toolbox results).
+ */
+export function RunForm({ module, project, picker, onStart, onCancel }: {
+  module: ModuleInfo; project: string; picker?: PointPicker; onStart: (p: Record<string, string>) => void; onCancel: () => void;
 }) {
   const [vals, setVals] = useState<Record<string, string>>(Object.fromEntries(module.parameters.map((p) => [p.name, initial(p)])));
-  const points = module.parameters.filter((p) => p.type === "point");
+  const shown = module.parameters.filter((p) => whenOk(p.when, vals));
+  const options = (p: ModuleParam) => (p.choices ?? []).filter((c) => whenOk(c.when, vals));
+  // A choice that stops being offered (e.g. a time step the chosen data doesn't have) moves to the first offered one.
+  useEffect(() => {
+    const fix: Record<string, string> = {};
+    for (const p of shown) {
+      if (p.type !== "choice") continue;
+      const opts = options(p);
+      if (opts.length && !opts.some((c) => String(c.value) === vals[p.name])) fix[p.name] = String(opts[0].value);
+    }
+    if (Object.keys(fix).length) setVals((v) => ({ ...v, ...fix }));
+  });
+  const hasLayers = shown.some((p) => p.type === "layer");
+  const layers = useQuery({
+    queryKey: ["project-layers", project],
+    queryFn: () => api<{ layers: ProjectLayer[] }>(`/api/projects/${project}/layers/`).then((d) => d.layers),
+    enabled: hasLayers,
+  });
+  const points = shown.filter((p) => p.type === "point");
   const [active, setActive] = useState<string | undefined>(points[0]?.name);
+  const pointNames = points.map((p) => p.name).join(",");
+  // The active point follows the visible point parameters (e.g. when "A point on the map" is chosen).
+  useEffect(() => { if (!active || !points.some((p) => p.name === active)) setActive(points[0]?.name); }, [pointNames]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeValue = active ? vals[active] : "";
   // While the form is open, map clicks set the active point.
   useEffect(() => {
@@ -40,13 +159,14 @@ export function RunForm({ module, picker, onStart, onCancel }: {
     picker.start((ll) => setVals((v) => ({ ...v, [active]: fmtPoint(ll) })));
     return () => picker.stop();
   }, [picker, active]);
-  useEffect(() => { if (picker && active) picker.show(parsePoint(activeValue)); }, [picker, active, activeValue]);
+  useEffect(() => { if (picker) picker.show(active ? parsePoint(activeValue) : null); }, [picker, active, activeValue]);
   useEffect(() => () => picker?.show(null), [picker]);
-  const missing = points.filter((p) => !parsePoint(vals[p.name]));
+  const missing = [...points.filter((p) => !parsePoint(vals[p.name])), ...shown.filter((p) => p.type === "layer" && !vals[p.name])];
   const data = module.inputs.filter((i) => i.dataset);
+  const submit = () => onStart(Object.fromEntries(shown.map((p) => [p.name, vals[p.name]])));
   return (
-    <form className="run-form" onSubmit={(e) => { e.preventDefault(); if (!missing.length) onStart(vals); }}>
-      {module.parameters.map((p) => p.type === "criteria" ? (
+    <form className="run-form" onSubmit={(e) => { e.preventDefault(); if (!missing.length) submit(); }}>
+      {shown.map((p) => p.type === "criteria" ? (
         <div key={p.name} className="run-criteria-field">
           <span className="run-field-label">{p.label}</span>
           <CriteriaEditor layers={p.layers ?? []} value={vals[p.name]} onChange={(v) => setVals({ ...vals, [p.name]: v })} />
@@ -55,8 +175,11 @@ export function RunForm({ module, picker, onStart, onCancel }: {
         <label key={p.name}>{p.label}
           {p.type === "choice" ? (
             <select className="input" value={vals[p.name]} onChange={(e) => setVals({ ...vals, [p.name]: e.target.value })}>
-              {p.choices!.map((c) => <option key={String(c.value)} value={String(c.value)}>{c.label}</option>)}
+              {options(p).map((c) => <option key={String(c.value)} value={String(c.value)}>{c.label}</option>)}
             </select>
+          ) : p.type === "layer" ? (
+            <LayerSelect layers={(layers.data ?? []).filter((l) => l.kind === "vector" && (!p.geometry || !l.geometry || l.geometry === p.geometry))}
+              loading={layers.isPending} value={vals[p.name]} onChange={(v) => setVals({ ...vals, [p.name]: v })} />
           ) : p.type === "point" ? (
             <>
               <span className={`run-point${active === p.name ? " is-active" : ""}`}>
@@ -75,10 +198,36 @@ export function RunForm({ module, picker, onStart, onCancel }: {
       {/* Short list only: modules that read many layers (e.g. an area profile) already show them as tags above. */}
       {data.length > 0 && data.length <= 3 && <p className="muted small">Data: {data.map((i) => i.dataset!.title).join(", ")} — fetched for the project area and cached.</p>}
       <div className="run-form-actions">
-        <button className="btn btn-dark btn-sm" disabled={missing.length > 0} title={missing.length ? `Pick ${missing[0].label.toLowerCase()} on the map first` : undefined}><Play aria-hidden="true" />Start</button>
+        <button className="btn btn-dark btn-sm" disabled={missing.length > 0}
+          title={missing.length ? (missing[0].type === "layer" ? `Choose ${missing[0].label.toLowerCase()} first` : `Pick ${missing[0].label.toLowerCase()} on the map first`) : undefined}>
+          <Play aria-hidden="true" />Start
+        </button>
         <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  );
+}
+
+/** A project vector layer, grouped by where it comes from (project, analyses, Toolbox). */
+function LayerSelect({ layers, loading, value, onChange }: {
+  layers: ProjectLayer[]; loading: boolean; value: string; onChange: (v: string) => void;
+}) {
+  const groups = useMemo(() => {
+    const by = new Map<string, ProjectLayer[]>();
+    for (const l of layers) by.set(l.group, [...(by.get(l.group) ?? []), l]);
+    return [...by];
+  }, [layers]);
+  if (loading) return <span className="muted small">Loading the project's layers…</span>;
+  if (!layers.length) return <span className="muted small">No polygon layers in this project yet: run an analysis or a Toolbox tool that makes one.</span>;
+  return (
+    <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Choose a layer…</option>
+      {groups.map(([g, ls]) => (
+        <optgroup key={g} label={g}>
+          {ls.map((l) => <option key={l.id} value={l.id}>{l.title}{l.source && l.group !== "Project" ? ` · ${l.source}` : ""}</option>)}
+        </optgroup>
+      ))}
+    </select>
   );
 }
 
@@ -197,6 +346,7 @@ export function RunResult({ run, meta, canReview, onReview, onOpenTable }: {
   const outs = run.outputs ?? [];
   const metrics = outs.filter((o) => o.type === "metric") as Extract<RunOutput, { type: "metric" }>[];
   const tables = outs.filter((o) => o.type === "table") as TableOut[];
+  const charts = outs.filter((o) => o.type === "chart") as ChartOut[];
   // Downloads: every output with a file; raster results as their GeoTIFF values (not the map preview).
   const files = outs.flatMap((o) => o.type === "raster" ? [{ name: o.name, title: `${o.title} (GeoTIFF)`, file: o.data_file }]
     : "file" in o ? [o as { name: string; title: string; file: string }] : []);
@@ -212,6 +362,7 @@ export function RunResult({ run, meta, canReview, onReview, onOpenTable }: {
         <>
           {metrics.length > 0 && <dl className="metrics">{metrics.map((m) => <div key={m.name}><dt>{m.title}</dt><dd>{fmtNum(m.value)}<span>{m.unit}</span></dd></div>)}</dl>}
           {run.summary && <p className="run-summary">{run.summary}</p>}
+          {charts.map((c) => <SeriesChart key={c.name} chart={c} />)}
           {(run.evidence ?? []).length > 0 && (
             <section>
               <h4 className="pw-h4">Evidence for indicators</h4>

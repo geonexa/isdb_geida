@@ -33,6 +33,8 @@ import { useTranslation } from "react-i18next";
 import { ContextMenuGestureTracker, type ContextMenuRequest } from "../../lib/context-menu-gesture";
 import { googleEarthUrl, googleMapsUrl } from "../../lib/external-map-links";
 import { openExternalLink } from "../../lib/open-external";
+import { isMenuItemVisible } from "../../lib/ui-profile";
+import { useDesktopSettingsStore } from "../../hooks/useDesktopSettings";
 import {
   bufferPresetsFor,
   clickedPointLayer,
@@ -123,6 +125,9 @@ export function MapContextMenu({
   onExplorePlace?: (lat: number, lng: number) => void;
 }) {
   const { i18n, t } = useTranslation();
+  // GEIDA: items that open outside sites or services follow the UI profile (deployment.json).
+  const uiProfile = useDesktopSettingsStore((state) => state.desktopSettings.uiProfile);
+  const shown = (id: string) => isMenuItemVisible(uiProfile, id);
   // `menu` keeps the last anchor/coordinate even while closing, so the exit
   // animation plays from the right spot; `open` drives visibility separately.
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
@@ -476,7 +481,7 @@ export function MapContextMenu({
           <DropdownMenuLabel className="text-xs text-muted-foreground">
             {t("mapContextMenu.quickActions")}
           </DropdownMenuLabel>
-          {onExplorePlace ? (
+          {onExplorePlace && shown("contextMenu.whatsHere") ? (
             <DropdownMenuItem onSelect={explorePlace} className="gap-2">
               <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
               {t("mapContextMenu.whatsHere")}
@@ -494,7 +499,7 @@ export function MapContextMenu({
             <ZoomIn className="h-4 w-4 shrink-0 text-muted-foreground" />
             {t("mapContextMenu.zoomInHere")}
           </DropdownMenuItem>
-          {lineOfSightAvailable ? (
+          {lineOfSightAvailable && shown("controls.directions") ? (
             <>
               <DropdownMenuItem onSelect={() => directionsHere("destination")} className="gap-2">
                 <Signpost className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -523,15 +528,19 @@ export function MapContextMenu({
                   {t("quickAnalysis.bufferHere", { distance: formatDistance(preset) })}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => travelTimeHere("auto")} className="gap-2">
-                <Route className="h-4 w-4 shrink-0 text-muted-foreground" />
-                {t("quickAnalysis.driveTimeHere", { contours: QUICK_TRAVEL_CONTOURS_LABEL })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => travelTimeHere("pedestrian")} className="gap-2">
-                <Route className="h-4 w-4 shrink-0 text-muted-foreground" />
-                {t("quickAnalysis.walkTimeHere", { contours: QUICK_TRAVEL_CONTOURS_LABEL })}
-              </DropdownMenuItem>
+              {shown("controls.directions") && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => travelTimeHere("auto")} className="gap-2">
+                    <Route className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {t("quickAnalysis.driveTimeHere", { contours: QUICK_TRAVEL_CONTOURS_LABEL })}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => travelTimeHere("pedestrian")} className="gap-2">
+                    <Route className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    {t("quickAnalysis.walkTimeHere", { contours: QUICK_TRAVEL_CONTOURS_LABEL })}
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               {VIEWSHED_RADII_METERS.map((radiusMeters) => (
                 <DropdownMenuItem
@@ -561,15 +570,19 @@ export function MapContextMenu({
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={viewInGoogleMaps} className="gap-2">
-            <MapIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {t("mapContextMenu.viewInGoogleMaps")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={viewInGoogleEarth} className="gap-2">
-            <Earth className="h-4 w-4 shrink-0 text-muted-foreground" />
-            {t("mapContextMenu.viewInGoogleEarth")}
-          </DropdownMenuItem>
+          {(shown("view.googleMaps") || shown("view.googleEarth")) && <DropdownMenuSeparator />}
+          {shown("view.googleMaps") && (
+            <DropdownMenuItem onSelect={viewInGoogleMaps} className="gap-2">
+              <MapIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {t("mapContextMenu.viewInGoogleMaps")}
+            </DropdownMenuItem>
+          )}
+          {shown("view.googleEarth") && (
+            <DropdownMenuItem onSelect={viewInGoogleEarth} className="gap-2">
+              <Earth className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {t("mapContextMenu.viewInGoogleEarth")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

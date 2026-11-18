@@ -177,30 +177,35 @@ PROJECT_CYCLE = [
 
 
 
-# The three Phase II components from the GEIDA framework.
+# What GEIDA is built on, shown on the home page (general: no project names, counts or countries).
 COMPONENTS = [
     {
         "key": "A",
         "name": "Technology",
-        "title": "Platform development and operational integration",
+        "title": "One platform for Earth observation",
         "image": "/img/comp-technology.jpg",
-        "text": "A scalable, secure platform that turns the EO Toolkit's knowledge base into an engine for the Bank's daily work.",
-        "items": ["Data Catalog", "AI-powered analytics", "Sector dashboards", "Automated EO indicators"],
+        "text": "Satellite data, ready-made analyses and maps in one secure place, built into the way projects "
+                "are prepared, supervised and evaluated.",
+        "items": ["Data Catalog of global and national layers", "Analyses for every sector",
+                  "Interactive maps and print layouts", "Reports traced to their data"],
     },
     {
         "key": "B",
-        "name": "Action",
-        "title": "Sector project integration and deep-dives",
+        "name": "Practice",
+        "title": "Evidence inside real projects",
         "image": "/img/comp-action.jpg",
-        "text": "EO tools embedded in real pipeline projects, with results checked against field measurements.",
-        "items": ["10 to 15 projects onboarded", "Uganda pilot", "Mali and Azerbaijan deep-dives", "Field validation"],
+        "text": "Earth observation applied across sectors and regions, from site screening to post-evaluation, "
+                "with results checked against information from the field.",
+        "items": ["Projects across all sectors", "Sector deep-dives", "Evidence for the Results Framework",
+                  "Field validation"],
     },
     {
         "key": "C",
         "name": "People",
-        "title": "Capacity building and certification",
+        "title": "Skills that stay with the Bank",
         "image": "/img/comp-people.jpg",
-        "text": "Certified staff and Regional Hubs who use GEIDA in their own projects, supported by a Knowledge Hub.",
-        "items": ["Foundation level, about 100 staff", "Advanced level, about 50 staff", "Regional Hubs", "GEIDA Knowledge Hub"],
+        "text": "Training and certification so staff and partners can use Earth observation in their own work, "
+                "supported by Regional Hubs and a shared Knowledge Hub.",
+        "items": ["Foundation and advanced training", "Certification", "Regional Hubs", "GEIDA Knowledge Hub"],
     },
 ]

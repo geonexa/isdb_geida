@@ -55,6 +55,8 @@ button, input { font: inherit; color: inherit; }
 .btn-dark:hover { background: var(--teal); }
 .btn-light { background: #fff; color: var(--ink); }
 .btn-light:hover { background: var(--sand); }
+.btn-ghost-light { background: transparent; color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.8); }
+.btn-ghost-light:hover { background: rgba(255,255,255,.12); }
 .btn-ghost { color: #fff; border-color: rgba(255,255,255,.6); }
 .btn-ghost:hover { background: #fff; color: var(--ink); }
 .btn-outline { border-color: var(--ink); color: var(--ink); background: var(--paper); }

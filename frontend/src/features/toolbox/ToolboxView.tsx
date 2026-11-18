@@ -93,7 +93,6 @@ function ToolList({ catalog, onPick }: { catalog: UseQueryResult<Catalog>; onPic
   const match = (t: Tool) => words.every((w) => `${t.title} ${t.summary} ${t.id}`.toLowerCase().includes(w));
   return (
     <div className="tbx-list">
-      <p className="muted small">{catalog.data.count} tools for vector and raster data, run on the server ({catalog.data.engine}). Every run is saved under Results.</p>
       <label className="tbx-search"><Search aria-hidden="true" /><input type="search" placeholder="Search tools (buffer, clip, zonal…)" value={q} onChange={(e) => setQ(e.target.value)} /></label>
       {catalog.data.categories.map((c) => {
         const tools = c.tools.filter(match);

@@ -9,7 +9,7 @@ Each page below explains every analysis in its category: the question it answers
 | Category | Analyses | What it covers |
 |---|---|---|
 | [Terrain and site conditions](terrain.md) | 5 | What is the physical setting of the site? Elevation, slope, aspect, contours, landforms and soils. |
-| [Water resources](water.md) | 3 | Where does water come from and go? Catchments, rivers, surface water, rainfall, evapotranspiration and water accounting. |
+| [Water resources](water.md) | 4 | Where does water come from and go? Catchments, rivers, surface water, rainfall, evapotranspiration and water accounting. |
 | [Land, vegetation and agriculture](land.md) | 6 | What covers the land and how productive is it? Land cover and change, vegetation indices, fields, crops and forests. |
 | [People and socio-economics](people.md) | 5 | Who lives here and how well served are they? Population, settlements, access, electrification and wealth. |
 | [Infrastructure and services](infrastructure.md) | 5 | What is built and what services exist? Buildings, transport, schools, health, public facilities, power and utilities. |
@@ -27,6 +27,7 @@ Each page below explains every analysis in its category: the question it answers
 | [Catchment from a point](water.md#catchment-from-a-point) | Water resources | Which land drains to a chosen point (a dam, intake, bridge or road crossing), and how large and steep is it? |
 | [Stream network and order](water.md#stream-network-and-order) | Water resources | Where do streams run, how long are they by order, and how dense is the drainage? |
 | [Sub-catchments in the area](water.md#sub-catchments-in-the-area) | Water resources | Which drainage units does the area split into, how large and steep are they, and where does water leave the area? |
+| [WaPOR time series](water.md#wapor-time-series) | Water resources | How do rainfall, water use and biomass change over time at a point or in each zone? |
 | [Biomass production](land.md#biomass-production) | Land, vegetation and agriculture | How much biomass does the land produce each year? |
 | [Field boundaries](land.md#field-boundaries) | Land, vegetation and agriculture | How many fields are there, how large, and how much land do they cover? |
 | [Forest cover and loss](land.md#forest-cover-and-loss) | Land, vegetation and agriculture | How much forest is there, and how much was lost each year? |

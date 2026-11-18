@@ -91,8 +91,13 @@ class OnboardingTests(TestCase):
         self.client.force_login(self.reviewer)
         self.assertEqual(self.post("/api/projects/AZE1028/return/", {}).status_code, 400)
         self.assertEqual(self.post("/api/projects/AZE1028/publish/", {}).json()["project"]["status"], "published")
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get("/api/projects/AZE1028/").status_code, 200)   # published: every signed-in user
         self.client.logout()
-        self.assertEqual(self.client.get("/api/projects/AZE1028/").status_code, 200)
+        # Projects are for signed-in users only, even published ones.
+        self.assertEqual(self.client.get("/api/projects/AZE1028/").status_code, 401)
+        self.assertEqual(self.client.get("/api/projects/").status_code, 401)
+        self.assertEqual(self.client.get("/api/analysis/runs/?project=AZE1028").status_code, 404)
 
     def test_template_import_with_boundary_zip(self):
         from openpyxl import Workbook
@@ -174,3 +179,95 @@ class MapLayoutTests(TestCase):
         self.assertEqual(self.call("get", "/api/projects/NOPE01/map-layout/").status_code, 404)
         self.client.logout()
         self.assertEqual(self.call("get", "/api/projects/map-templates/").status_code, 401)
+
+
+class ProjectLayersTests(TestCase):
+    """The Analytics workspace lists a project's area, analysis outputs and Toolbox outputs as layers."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.gis.geos import MultiPolygon, Polygon
+
+        from apps.analysis.models import Module, ModuleRun
+        from apps.toolbox.models import ToolRun
+        from .models import ProjectArea
+
+        U = get_user_model()
+        cls.editor = U.objects.create_user("ed", "ed@example.org", "pw-123456!")
+        cls.other = U.objects.create_user("ot", "ot@example.org", "pw-123456!")
+        p = Project.objects.create(code="AZE1028", title="Karabakh canal", country_iso3="AZE", owner=cls.editor)
+        ProjectArea.objects.create(project=p, method="upload", area_km2=10.0,
+                                   geom=MultiPolygon(Polygon.from_bbox((47.1, 40.5, 47.7, 40.8)), srid=4326))
+        m = Module.objects.create(id="test_mod", version="1.0", title="Test analysis")
+        ModuleRun.objects.create(project=p, module=m, module_version="1.0", status="done", outputs=[
+            {"type": "raster", "name": "slope", "title": "Slope", "file": "slope.png", "data_file": "slope.tif"},
+            {"type": "vector", "name": "sites", "title": "Sites", "file": "sites.geojson", "style": {"color": "#f00"}},
+            {"type": "metric", "name": "m", "title": "Mean", "value": 1},
+        ])
+        ModuleRun.objects.create(project=p, module=m, module_version="1.0", status="failed", outputs=[
+            {"type": "vector", "name": "x", "title": "Failed", "file": "x.geojson"}])
+        ToolRun.objects.create(project=p, created_by=cls.editor, tool="buffer_vector", tool_title="Buffer",
+                               engine="geolibre", name="Roads buffer", status="done", outputs=[
+                                   {"name": "output", "title": "Output", "kind": "vector", "file": "output.gpkg",
+                                    "geojson": "output.geojson"},
+                                   {"name": "t", "title": "Table", "kind": "table", "file": "t.csv"}])
+
+    def test_lists_layers_of_the_project(self):
+        self.client.force_login(self.editor)
+        r = self.client.get("/api/projects/AZE1028/layers/")
+        self.assertEqual(r.status_code, 200, r.content)
+        layers = r.json()["layers"]
+        self.assertEqual([(l["group"], l["kind"], l["title"]) for l in layers], [
+            ("Project", "vector", "Area of influence"), ("Analyses", "raster", "Slope"),
+            ("Analyses", "vector", "Sites"), ("Toolbox", "vector", "Output")])
+        self.assertEqual(layers[1]["url"], "/api/projects/AZE1028/layers/run-%d-slope/raster/" % layers[1]["run"])
+        self.assertTrue(layers[3]["url"].endswith("/files/output.geojson"))
+        area = self.client.get(layers[0]["url"])
+        self.assertEqual(area["Content-Type"], "application/geo+json")
+        self.assertEqual(json.loads(area.content)["features"][0]["properties"]["project"], "AZE1028")
+
+    def test_sign_in_and_access(self):
+        self.assertEqual(self.client.get("/api/projects/AZE1028/layers/").status_code, 401)
+        self.assertEqual(self.client.get("/api/projects/AZE1028/layers/area/").status_code, 401)
+        self.client.force_login(self.other)                  # a draft project: only its owner (and reviewers)
+        self.assertEqual(self.client.get("/api/projects/AZE1028/layers/").status_code, 404)
+
+    def test_raster_display_keeps_values_and_colours(self):
+        """Classified rasters come as a one-byte GeoTIFF with a colour table; ramps unchanged, with their palette."""
+        import tempfile
+        from pathlib import Path
+
+        import numpy as np
+        import rasterio
+        from django.test import override_settings
+        from rasterio.transform import from_bounds
+
+        from apps.analysis.models import Module, ModuleRun
+
+        with tempfile.TemporaryDirectory() as tmp, override_settings(MEDIA_ROOT=Path(tmp)):
+            p = Project.objects.get(code="AZE1028")
+            r = ModuleRun.objects.create(project=p, module=Module.objects.get(pk="test_mod"), module_version="1.0",
+                                         status="done", outputs=[
+                {"type": "raster", "name": "cls", "title": "Classes", "data_file": "cls.tif", "legend_spec": {
+                    "type": "classes", "items": [{"value": 1, "color": "#FF0000", "label": "One"},
+                                                 {"value": 4, "color": "#00FF00", "label": "Four"}]}},
+                {"type": "raster", "name": "ramp", "title": "Ramp", "data_file": "ramp.tif", "legend_spec": {
+                    "type": "ramp", "palette": ["#FFFFCC", "#006837"], "min": 0, "max": 10, "unit": "m"}}])
+            r.workdir.mkdir(parents=True, exist_ok=True)
+            a = np.array([[1, 4], [4, np.nan]], dtype="float32")
+            for name in ("cls", "ramp"):
+                with rasterio.open(r.workdir / f"{name}.tif", "w", driver="GTiff", width=2, height=2, count=1,
+                                   dtype="float32", crs="EPSG:4326", transform=from_bounds(47.1, 40.5, 47.2, 40.6, 2, 2),
+                                   nodata=np.nan) as d:
+                    d.write(a, 1)
+            self.client.force_login(self.editor)
+            res = self.client.get(f"/api/projects/AZE1028/layers/run-{r.pk}-cls/raster/")
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(json.loads(res["X-GEIDA-Style"]), {"colormap": "palette", "nodata": 255})
+            b"".join(res.streaming_content)
+            with rasterio.open(Path(r.workdir) / "cls.display.tif") as d:
+                self.assertEqual(d.read(1).tolist(), [[1, 4], [4, 255]])
+                self.assertEqual(d.colormap(1)[4][:3], (0, 255, 0))
+            res = self.client.get(f"/api/projects/AZE1028/layers/run-{r.pk}-ramp/raster/")
+            self.assertEqual(json.loads(res["X-GEIDA-Style"])["palette"], ["#FFFFCC", "#006837"])
+            self.assertEqual(self.client.get(f"/api/projects/AZE1028/layers/run-{r.pk}-nope/raster/").status_code, 404)

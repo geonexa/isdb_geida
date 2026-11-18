@@ -52,9 +52,18 @@ def parse_point(v):
     return [round(lon, 6), round(lat, 6)] if -180 <= lon <= 180 and -90 <= lat <= 90 else None
 
 
+def when_ok(when, values):
+    """Whether a `when` rule ({param: [allowed values]}) holds for the given parameter values (compared as text)."""
+    if not when:
+        return True
+    return all(str(values.get(k)) in {str(v) for v in allowed} for k, allowed in when.items())
+
+
 class Choice(_Strict):
     value: str | int | float
     label: str
+    # Offered only while other parameters have these values, e.g. {variable: [PCP, RET]} (the run form hides it).
+    when: dict[str, list[str | int | float]] | None = None
 
 
 class CriteriaLayer(_Strict):
@@ -123,8 +132,13 @@ class Parameter(_Strict):
     name: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     # point: [lon, lat] picked on the map in the run form (e.g. a catchment outlet); default null = required
     # criteria: a list of conditions with weights (site suitability), on the layers listed in `layers`
-    type: Literal["number", "choice", "text", "boolean", "point", "criteria"]
+    # layer: one of the project's vector layers (area of influence, analysis and Toolbox results), by id
+    type: Literal["number", "choice", "text", "boolean", "point", "criteria", "layer"]
     label: str
+    # Shown and checked only while other parameters have these values, e.g. {aoi: [point]}.
+    when: dict[str, list[str | int | float]] | None = None
+    # layer: the geometry it must have
+    geometry: Literal["polygon", "line", "point"] | None = None
     default: Any = None
     min: float | None = None
     max: float | None = None

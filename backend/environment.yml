@@ -24,5 +24,7 @@ dependencies:
   - shapely>=2
   - numpy
   - scipy
+  - weasyprint              # project reports: HTML to PDF (BSD); brings Pango, HarfBuzz, fontconfig
+  - brotli-python           # lets WeasyPrint read the WOFF2 report font (Outfit)
   - pip:
       - -r requirements.txt

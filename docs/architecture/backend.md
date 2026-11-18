@@ -14,6 +14,7 @@ Django admin under `/admin/`. It never renders the web app's pages.
 | `projects` | `/api/projects/` | Projects, areas, indicators, CRIs, documents, import, review workflow, project data-catalog layers |
 | `analysis` | `/api/analysis/` | Module registry, runs (start, cancel, delete), datasets, evidence; OSM and vector helpers |
 | `toolbox` | `/api/toolbox/` | Processing Toolbox: curated GeoLibre tools run on the server with wasmtime, saved tool runs, uploads |
+| `reports` | `/api/reports/` | Project reports: reports and frozen versions (web page + PDF with WeasyPrint), SVG maps and charts, share links |
 
 Each app has the same shape: `models.py`, `views.py` (plain JSON views), `urls.py`,
 `admin.py`, `tests*.py`, and `management/commands/` for data loaders.
@@ -48,10 +49,12 @@ sets the cookie. Unknown `/api/` paths return a JSON 404.
 | Data Catalog `/api/geoportal/` | `GET config/` · `GET basemaps/` · `GET layers/<id>/tiles/?year=` · `POST layers/<id>/clip/` · `GET,POST areas/` · `PATCH,DELETE areas/<id>/` |
 | Boundaries `/api/boundaries/` | `GET units/?iso3=&level=&parent=&q=` · `GET units/geojson/` · `GET units/<gid>/` · `GET at/?lon=&lat=` · `GET world/` · `POST union/` |
 | Projects `/api/projects/` | `GET,POST /` · `GET meta/` · `GET cri/?q=` · `POST area/preview/` · `GET import/template/` · `POST import/preview/` · `POST import/commit/` · `GET,PATCH,DELETE <code>/` · `PUT <code>/area/` · `PUT <code>/indicators/` · `PUT <code>/documents/` · `POST <code>/submit/`, `return/`, `publish/` |
-| Project data layers | `GET <code>/satellite/` · `GET <code>/satellite/<id>/tiles/?year=&cmap=&range=` · `GET <code>/satellite/<id>/xyz/<z>/<x>/<y>.png` · `GET <code>/satellite/<id>/download/` |
+| Project data layers (catalogue layers no built analysis uses yet, each with its Analyses `category` and the planned `analysis` it belongs to; `ANALYSIS_LAYERS` in `apps/geoportal/project_rs.py`) | `GET <code>/satellite/` · `GET <code>/satellite/<id>/tiles/?year=&cmap=&range=` · `GET <code>/satellite/<id>/xyz/<z>/<x>/<y>.png` · `GET <code>/satellite/<id>/download/` |
 | Analysis `/api/analysis/` | `GET datasets/` · `GET modules/?project=` · `GET,POST runs/` · `GET,DELETE runs/<id>/` · `POST runs/delete/` · `POST runs/<id>/cancel/` · `GET runs/<id>/files/<name>` · `GET evidence/` · `POST evidence/<id>/accept/`, `reject/` |
 | Toolbox `/api/toolbox/` | `GET tools/` · `GET <code>/inputs/` · `GET,POST <code>/runs/` · `GET,PATCH,DELETE runs/<id>/` · `POST runs/delete/` · `GET runs/<id>/files/<name>` · `GET,POST <code>/uploads/` · `DELETE uploads/<id>/` |
 | Map layouts | `GET,PUT /api/projects/<code>/map-layout/` · `GET,POST,DELETE /api/projects/map-templates/` |
+| Reports `/api/reports/` | `GET,POST <code>/` · `GET <code>/runs/` · `GET,PATCH,DELETE <id>/` · `GET <id>/preview/` · `POST <id>/generate/` · `POST,DELETE <id>/share/` · `GET versions/<id>/` · `GET versions/<id>/pdf` · `GET shared/<token>/` (no sign-in) · `GET shared/<token>/pdf` |
+| Project layers (Analytics) | `GET /api/projects/<code>/layers/` (area, analysis and Toolbox outputs with file URLs) · `GET /api/projects/<code>/layers/area/` (area as GeoJSON) · `GET /api/projects/<code>/layers/<id>/raster/` (raster for display; colours in `X-GEIDA-Style`) |
 
 ## Background work
 

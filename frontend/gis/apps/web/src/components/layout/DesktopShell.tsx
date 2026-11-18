@@ -21,7 +21,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { BROWSER_PANEL_ID, useRegisterBrowserPanel } from "../../hooks/useRegisterBrowserPanel";
-import { COMMENTS_PANEL_ID, useRegisterCommentsPanel } from "../../hooks/useRegisterCommentsPanel";
+import { COMMENTS_PANEL_ID } from "../../hooks/useRegisterCommentsPanel";
 import { useRegisterObiaPanel } from "../../hooks/useRegisterObiaPanel";
 import { MountWhenOpened } from "./MountWhenOpened";
 import { RightDockPortals } from "./RightDockPortals";
@@ -270,7 +270,7 @@ export function DesktopShell({
   // Register the Browser as a movable/dockable right panel; its body is portaled
   // into a dedicated content host (below) that the dock slots adopt.
   useRegisterBrowserPanel();
-  useRegisterCommentsPanel();
+  // GEIDA: no Comments panel (it needs GeoLibre's collaboration server).
   useRegisterObiaPanel();
   // One shared project-file-actions instance for both the toolbar and the
   // Browser panel, so their "open recent" calls coordinate their aborts (two

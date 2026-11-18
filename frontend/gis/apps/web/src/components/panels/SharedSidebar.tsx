@@ -139,7 +139,8 @@ export function SharedSidebar({
     };
   });
   if (builtinVisible) {
-    entries.push({
+    // GEIDA: on the left rail Layers comes first, above Browser and other panels.
+    entries[side === "layers" ? "unshift" : "push"]({
       // Namespaced so the built-in entry's React key cannot collide with a plugin
       // id (plugin ids are arbitrary strings).
       id: "__builtin__",
@@ -177,8 +178,9 @@ export function SharedSidebar({
   const rail = (
     <aside
       aria-label={t("sharedRail.label")}
+      data-side={side}
       className={cn(
-        "flex w-full shrink-0 items-center gap-1 border-t bg-card px-2 py-1 md:h-auto md:w-11 md:flex-col md:border-t-0 md:px-0 md:py-2",
+        "geida-rail flex w-full shrink-0 items-center gap-1 border-t bg-card px-2 py-1 md:h-auto md:w-11 md:flex-col md:border-t-0 md:px-0 md:py-2",
         side === "layers" ? "md:border-e" : "md:border-s",
       )}
     >
@@ -199,14 +201,14 @@ export function SharedSidebar({
           }
           onClick={entry.onToggle}
           className={cn(
-            "flex items-center gap-2 rounded px-1.5 py-1.5 md:flex-col md:px-1 md:py-2",
+            "geida-rail-btn flex items-center gap-2 rounded px-1.5 py-1.5 md:flex-col md:px-1 md:py-2",
             entry.active
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
           )}
         >
           {entry.icon}
-          <span className="text-[10px] font-semibold uppercase tracking-wide md:[writing-mode:vertical-rl] md:rotate-180">
+          <span className="geida-rail-label text-[10px] font-semibold uppercase tracking-wide md:[writing-mode:vertical-rl] md:rotate-180">
             {entry.title}
           </span>
         </button>

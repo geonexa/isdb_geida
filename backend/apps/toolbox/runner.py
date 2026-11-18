@@ -338,7 +338,8 @@ def _keep_raster(run, src, name, title):
     bounds = write_png(png, L.colorize(geo.data, spec), geo.transform)
     stats = r.stats()
     return {"name": name, "title": title, "kind": "raster", "file": tif.name, "preview": png.name, "bounds": bounds,
-            "legend": L.items(spec), "stats": {k: (round(v, 4) if isinstance(v, float) else v) for k, v in stats.items()},
+            "legend": L.items(spec), "legend_spec": spec,
+            "stats": {k: (round(v, 4) if isinstance(v, float) else v) for k, v in stats.items()},
             "resolution_m": round(r.grid.res, 2)}
 
 

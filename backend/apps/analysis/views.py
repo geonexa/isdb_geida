@@ -142,7 +142,7 @@ def runs(request):
     av = availability(m, p)
     if av["status"] != "ready":
         return error(av["reasons"][0] if av["reasons"] else "This module can't run for this project.")
-    params, errs = _clean_params(m, data.get("params") or {}, area=p.area.geom)
+    params, errs = _clean_params(m, data.get("params") or {}, area=p.area.geom, project=p)
     if errs:
         return JsonResponse({"error": next(iter(errs.values())), "errors": errs}, status=400)
     if p.runs.filter(status__in=("queued", "running")).count() >= MAX_ACTIVE_RUNS_PER_PROJECT:
@@ -169,10 +169,16 @@ def _km_from_area(lonlat, area):
     return a.distance(pt) / 1000
 
 
-def _clean_params(manifest, raw, area=None):
+def _clean_params(manifest, raw, area=None, project=None):
+    from .core.manifest import when_ok
     out, errs = {}, {}
-    for spec in manifest.get("parameters", []) or []:
+    specs = manifest.get("parameters", []) or []
+    # Values as sent (or defaults), for `when` rules: a parameter whose rule doesn't hold is left out.
+    given = {sp["name"]: raw.get(sp["name"], sp.get("default")) for sp in specs}
+    for spec in specs:
         name, kind = spec["name"], spec.get("type", "number")
+        if not when_ok(spec.get("when"), given):
+            continue
         v = raw.get(name, spec.get("default"))
         if kind == "number":
             try:
@@ -185,11 +191,31 @@ def _clean_params(manifest, raw, area=None):
                 errs[name] = f"{spec.get('label', name)} must be between {lo} and {hi}."
                 continue
         elif kind == "choice":
-            match = [c["value"] for c in spec.get("choices", []) if str(c["value"]) == str(v)]
+            match = [c for c in spec.get("choices", []) if str(c["value"]) == str(v)]
             if not match:
                 errs[name] = f"Choose a value for {spec.get('label', name)}."
                 continue
-            v = match[0]
+            if not when_ok(match[0].get("when"), given):
+                ok = [c["label"] for c in spec.get("choices", []) if when_ok(c.get("when"), given)]
+                errs[name] = f"{match[0]['label']} isn't available with these settings; choose {', '.join(ok) or 'another value'}."
+                continue
+            v = match[0]["value"]
+        elif kind == "layer":
+            label = spec.get("label", name)
+            if v in (None, ""):
+                errs[name] = f"Choose a layer for {label}."
+                continue
+            if project is not None:
+                from apps.projects.project_layers import project_layers_list
+                layer = next((l for l in project_layers_list(project) if l["id"] == v and l["kind"] == "vector"), None)
+                if layer is None:
+                    errs[name] = f"{label}: that layer isn't in this project any more."
+                    continue
+                want = spec.get("geometry")
+                if want and layer.get("geometry") and layer["geometry"] != want:
+                    errs[name] = f"{label}: choose a {want} layer ({layer['title']} has {layer['geometry']}s)."
+                    continue
+            v = str(v)
         elif kind == "criteria":
             from .core.manifest import parse_criteria
             v, problem = parse_criteria(v, spec.get("layers") or [])

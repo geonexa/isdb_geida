@@ -1,7 +1,7 @@
 import "@/shared/styles/catalog.css";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity, Boxes, Building2, ChevronDown, ChevronLeft, CircleAlert, CloudLightning, Droplets, FlaskConical, Layers as LayersIcon, Mountain, Play, Search, Sparkles, Sprout, Target, Trash2, Users, type LucideIcon } from "lucide-react";
+import { Activity, Boxes, Building2, ChevronDown, ChevronLeft, CircleAlert, CloudLightning, Droplets, Mountain, Play, Search, Sparkles, Sprout, Target, Trash2, Users, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { api, ApiError } from "@/shared/api/client";
@@ -10,6 +10,7 @@ import { useToast } from "@/shared/components/Toasts";
 import type { Evidence, Meta, ModuleCategory, ModuleInfo, PlannedAnalysis, PointPicker, Project, Run } from "@/features/projects/types";
 import { ACTIVE, useModules, useRun, useRuns } from "@/features/projects/workspace/data";
 import { RunForm, RunIcon, RunResult, type TableOut } from "@/features/projects/workspace/RunParts";
+import type { SatLayer } from "@/features/projects/workspace/satellite";
 
 const MAX_TAGS = 3;
 /** What an analysis does for a Core Result Indicator (manifest cri[].role). */
@@ -30,8 +31,6 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   building: Building2, target: Target, activity: Activity,
 };
 
-export type AnalysesView = "modules" | "data";
-
 type Props = {
   project: Project; meta?: Meta;
   phase: string; setPhase: (p: string) => void;
@@ -39,16 +38,15 @@ type Props = {
   runId: number | null; openRun: (id: number | null) => void;
   onReview: (e: Evidence, a: "accept" | "reject") => void;
   onOpenTable: (t: TableOut) => void;
-  /** Analysis modules, or the data layers (Data Catalog rasters cut to the area). */
-  view: AnalysesView; setView: (v: AnalysesView) => void;
-  dataCount: number; dataLayers: ReactNode;
+  /** Data Catalog layers no built analysis uses yet (shown in their planned analysis' row), and how to draw a list of them. */
+  layers: SatLayer[]; renderLayers: (layers: SatLayer[]) => ReactNode;
   /** Point parameters (e.g. a catchment outlet) are picked on the project map. */
   picker?: PointPicker;
 };
 
 /**
  * Analyses: analysis modules (search, recommended first, grouped by category, runs, a run
- * drill-in) and data layers (open rasters by theme, cut to the area), switched at the top.
+ * drill-in). Planned analyses whose Data Catalog layers exist show those layers, to view on the map now.
  * (The processing toolbox has its own tab: features/toolbox.)
  */
 export function AnalysesTab(props: Props) {
@@ -82,17 +80,7 @@ export function AnalysesTab(props: Props) {
   }
 
   const phases = mods.data?.phases ?? [];
-  const switcher = (
-    <div className="pw-views" role="tablist" aria-label="Analyses or data layers">
-      <button type="button" role="tab" aria-selected={props.view === "modules"} onClick={() => props.setView("modules")}>
-        <FlaskConical aria-hidden="true" />Analysis modules
-      </button>
-      <button type="button" role="tab" aria-selected={props.view === "data"} onClick={() => props.setView("data")}>
-        <LayersIcon aria-hidden="true" />Data layers{props.dataCount > 0 && <em>{props.dataCount}</em>}
-      </button>
-    </div>
-  );
-  // Phase first: each phase has its own analyses and data layers (a layer may serve several phases).
+  // Phase first: each phase has its own analyses and layers (a layer may serve several phases).
   const phasePicker = (
     <div className="pw-seg" role="tablist" aria-label="Project phase">
       {phases.map((p) => (
@@ -105,31 +93,23 @@ export function AnalysesTab(props: Props) {
   return (
     <div className="pw-analyses">
       {phasePicker}
-      {switcher}
-      {props.view === "data" && props.dataLayers}
-      {props.view === "modules" && (
-        <>
-          {mods.isPending && <p className="muted">Loading modules…</p>}
-          {mods.isError && <p className="field-error"><CircleAlert aria-hidden="true" />{(mods.error as Error).message}</p>}
-          {mods.data && <Catalogue {...props} modules={mods.data.modules} planned={mods.data.planned ?? []} categories={mods.data.categories ?? []} canRun={canRun} />}
-          <RunsList runs={(runs.data ?? []).filter((r) => r.phase === phase)} onOpen={openRun} onDelete={deleteRuns} />
-        </>
-      )}
+      {mods.isPending && <p className="muted">Loading modules…</p>}
+      {mods.isError && <p className="field-error"><CircleAlert aria-hidden="true" />{(mods.error as Error).message}</p>}
+      {mods.data && <Catalogue {...props} modules={mods.data.modules} planned={mods.data.planned ?? []} categories={mods.data.categories ?? []} canRun={canRun} />}
+      <RunsList runs={(runs.data ?? []).filter((r) => r.phase === phase)} onOpen={openRun} onDelete={deleteRuns} />
     </div>
   );
 }
 
-function Catalogue({ project, phase, query, setQuery, openRun, modules, planned, categories, canRun, picker }: Props & { modules: ModuleInfo[]; planned: PlannedAnalysis[]; categories: ModuleCategory[]; canRun: boolean }) {
+function Catalogue({ project, phase, query, setQuery, openRun, modules, planned, categories, canRun, picker, layers, renderLayers }: Props & { modules: ModuleInfo[]; planned: PlannedAnalysis[]; categories: ModuleCategory[]; canRun: boolean }) {
   const toast = useToast();
   const qc = useQueryClient();
-  const [readyOnly, setReadyOnly] = useState(false);
   const [openForm, setOpenForm] = useState<string | null>(null);
 
   const { recommended, groups, total } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const titles = new Map(categories.map((c) => [c.id, c.title]));
     const matching = modules.filter((m) => m.phases.includes(phase))
-      .filter((m) => !readyOnly || m.availability?.status === "ready")
       .filter((m) => !q || [m.title, m.question, m.description, titles.get(m.category) ?? "", ...m.themes, ...m.cri.map((c) => c.code)].join(" ").toLowerCase().includes(q));
     const list = matching;
     const isRec = (m: ModuleInfo) => (m.cri_in_project?.length ?? 0) > 0 || m.themes.some((t) => project.themes.includes(t));
@@ -139,18 +119,28 @@ function Catalogue({ project, phase, query, setQuery, openRun, modules, planned,
     const recommended = pullOut ? list.filter((m) => (m.cri_in_project?.length ?? 0) > 0).sort((a, b) => score(b) - score(a)) : [];
     const rest = list.filter((m) => !recommended.includes(m)).sort((a, b) => score(b) - score(a) || a.title.localeCompare(b.title));
     const known = new Set(categories.map((c) => c.id));
+    // Data Catalog layers for this phase that no built analysis uses: shown inside the planned analysis they
+    // belong to (its data can be viewed now), or as their own row when that analysis isn't listed.
+    const phaseLayers = layers.filter((l) => !l.phases || l.phases.includes(phase));
+    const layerText = (ls: SatLayer[]) => ls.map((l) => `${l.name} ${l.source}`).join(" ");
+    const layersOf = (id: string) => phaseLayers.filter((l) => l.analysis === id);
     // Planned analyses for this phase (not runnable yet), listed after the built ones in each category.
-    const plan = readyOnly ? [] : planned.filter((a) => a.phases.includes(phase))
-      .filter((a) => !q || [a.title, a.question, titles.get(a.category) ?? ""].join(" ").toLowerCase().includes(q));
+    const plan = planned.filter((a) => a.phases.includes(phase))
+      .map((a) => ({ ...a, layers: layersOf(a.id) }))
+      .filter((a) => !q || [a.title, a.question, titles.get(a.category) ?? "", layerText(a.layers)].join(" ").toLowerCase().includes(q));
+    const shownPlanned = new Set(planned.filter((a) => a.phases.includes(phase)).map((a) => a.id));
+    const loose = phaseLayers.filter((l) => !l.analysis || !shownPlanned.has(l.analysis))
+      .filter((l) => !q || [l.name, l.source, titles.get(l.category ?? "") ?? ""].join(" ").toLowerCase().includes(q));
     const groups = [...categories, { id: "other", title: "Other", description: "", icon: "", order: 999, modules: 0 }]
       .map((c) => ({
         cat: c,
         mods: rest.filter((m) => (known.has(m.category) ? m.category : "other") === c.id),
         plan: plan.filter((a) => (known.has(a.category) ? a.category : "other") === c.id),
+        lays: loose.filter((l) => (known.has(l.category ?? "") ? l.category : "other") === c.id),
       }))
-      .filter((g) => g.mods.length + g.plan.length > 0);
-    return { recommended, groups, total: list.length + plan.length };
-  }, [modules, planned, categories, phase, query, readyOnly, project.themes]);
+      .filter((g) => g.mods.length + g.plan.length + g.lays.length > 0);
+    return { recommended, groups, total: list.length + plan.length + loose.length };
+  }, [modules, planned, categories, layers, phase, query, project.themes]);
 
   async function start(m: ModuleInfo, params: Record<string, string>) {
     try {
@@ -165,15 +155,14 @@ function Catalogue({ project, phase, query, setQuery, openRun, modules, planned,
   }
 
   const row = (m: ModuleInfo) => (
-    <ModuleRow key={m.id} m={m} canRun={canRun} formOpen={openForm === m.id} picker={picker}
+    <ModuleRow key={m.id} m={m} project={project.code} canRun={canRun} formOpen={openForm === m.id} picker={picker}
       onRun={() => setOpenForm(m.id)} onCancel={() => setOpenForm(null)} onStart={(p) => start(m, p)} />
   );
 
   return (
     <>
       <div className="pw-filter">
-        <label className="psearch"><Search aria-hidden="true" /><input type="search" placeholder="Search modules, themes, CRI…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search modules" /></label>
-        <label className="pw-check"><input type="checkbox" checked={readyOnly} onChange={(e) => setReadyOnly(e.target.checked)} />Ready only</label>
+        <label className="psearch"><Search aria-hidden="true" /><input type="search" placeholder="Search analyses, layers, themes, CRI…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search analyses and layers" /></label>
       </div>
       {total === 0 && <p className="muted small">No analyses match{query ? ` “${query}”` : ""} in this phase.</p>}
       <div className="pw-acc">
@@ -182,20 +171,24 @@ function Catalogue({ project, phase, query, setQuery, openRun, modules, planned,
             <ul className="pw-mods">{recommended.map(row)}</ul>
           </Accordion>
         )}
-        {groups.map(({ cat, mods, plan }) => (
+        {groups.map(({ cat, mods, plan, lays }) => (
           // Collapsed by default; a search opens every category with matches.
-          <Accordion key={cat.id} icon={CATEGORY_ICONS[cat.icon] ?? Boxes} title={cat.title} count={mods.length + plan.length} open={!!query.trim()}
+          <Accordion key={cat.id} icon={CATEGORY_ICONS[cat.icon] ?? Boxes} title={cat.title} count={mods.length + plan.length + lays.length} open={!!query.trim()}
             ready={mods.length ? mods.filter((m) => m.availability?.status === "ready").length : undefined}>
             {cat.description && <p className="pw-cat-desc">{cat.description}</p>}
             {mods.length > 0 && <ul className="pw-mods">{mods.map(row)}</ul>}
+            {lays.length > 0 && <div className="pw-loose-layers">{renderLayers(lays)}</div>}
             {plan.length > 0 && (
               <ul className="pw-mods pw-planned">
                 {plan.map((a) => (
-                  <li key={a.id} className="pw-mod is-planned">
+                  <li key={a.id} className={`pw-mod is-planned${a.layers.length ? " has-layers" : ""}`}>
                     <div className="pw-mod-main">
                       <div className="pw-mod-text"><strong>{a.title}</strong><p>{a.question}</p></div>
-                      <span className="avail avail-planned">Planned</span>
+                      {a.layers.length
+                        ? <span className="avail avail-data" title="The analysis is planned; its data can be viewed on the map now, cut to the area">Data only</span>
+                        : <span className="avail avail-planned">Planned</span>}
                     </div>
+                    {a.layers.length > 0 && renderLayers(a.layers)}
                   </li>
                 ))}
               </ul>
@@ -207,7 +200,7 @@ function Catalogue({ project, phase, query, setQuery, openRun, modules, planned,
   );
 }
 
-/** A collapsible group of modules (same look as the Data layers sections). */
+/** A collapsible category of analyses and layers. */
 function Accordion({ icon: Icon, title, count, ready, open, children }: {
   icon: LucideIcon; title: string; count: number; ready?: number; open?: boolean; children: ReactNode;
 }) {
@@ -225,8 +218,8 @@ function Accordion({ icon: Icon, title, count, ready, open, children }: {
   );
 }
 
-function ModuleRow({ m, canRun, formOpen, picker, onRun, onCancel, onStart }: {
-  m: ModuleInfo; canRun: boolean; formOpen: boolean; picker?: PointPicker; onRun: () => void; onCancel: () => void; onStart: (p: Record<string, string>) => void;
+function ModuleRow({ m, project, canRun, formOpen, picker, onRun, onCancel, onStart }: {
+  m: ModuleInfo; project: string; canRun: boolean; formOpen: boolean; picker?: PointPicker; onRun: () => void; onCancel: () => void; onStart: (p: Record<string, string>) => void;
 }) {
   const av = m.availability ?? { status: "not_available" as const, reasons: [] };
   const data = m.inputs.filter((i) => i.dataset);
@@ -252,7 +245,7 @@ function ModuleRow({ m, canRun, formOpen, picker, onRun, onCancel, onStart }: {
         {data.length > MAX_TAGS && <span className="ds-tag" title={data.slice(MAX_TAGS).map((i) => i.dataset!.title).join("\n")}>+{data.length - MAX_TAGS} more layers</span>}
       </div>
       {av.reasons.length > 0 && <ul className="mod-reasons">{av.reasons.map((r) => <li key={r}>{r}</li>)}</ul>}
-      {formOpen && <RunForm module={m} picker={picker} onCancel={onCancel} onStart={onStart} />}
+      {formOpen && <RunForm module={m} project={project} picker={picker} onCancel={onCancel} onStart={onStart} />}
     </li>
   );
 }

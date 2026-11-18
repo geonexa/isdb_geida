@@ -29,6 +29,7 @@ import { FAVORITES_CHANGED_EVENT, readBrowserFavorites } from "../lib/browser-fa
 import { IS_MAS_BUILD } from "../lib/build-flags";
 import { isTauri } from "../lib/tauri-io";
 import { buildBrowserTree, type BrowserNode } from "../lib/browser-tree";
+import { useDesktopSettingsStore } from "./useDesktopSettings";
 
 export interface BrowserTreeState {
   /** The section/category/leaf tree for the panel to render. */
@@ -62,6 +63,11 @@ export function useBrowserTree(): BrowserTreeState {
   // services/folders/favorites below), so My Data refreshes the moment a layer
   // is saved, renamed, or deleted.
   const layerLibrary = useAppStore((s) => s.layerLibrary);
+  // GEIDA: database engines hidden from Add Data by the UI profile (deployment.json) leave the Browser too.
+  const uiProfile = useDesktopSettingsStore((s) => s.desktopSettings.uiProfile);
+  const hiddenSource = (id: string) => uiProfile.enabled && uiProfile.hiddenDataSources.includes(id);
+  const hidePostgres = hiddenSource("postgres");
+  const hideMssql = hiddenSource("mssql");
   const servicesLabel = t("browser.services");
   const recentLabel = t("browser.recent");
   const databasesLabel = t("browser.databases");
@@ -104,13 +110,13 @@ export function useBrowserTree(): BrowserTreeState {
     // saved list is empty so each group retains its own "New connection" (＋).
     // The Mac App Store build cannot run the local processing sidecar, so it
     // passes undefined for both inputs and omits the whole Databases section.
-    const databaseConnections = IS_MAS_BUILD
+    const databaseConnections = IS_MAS_BUILD || hidePostgres
       ? undefined
       : readSavedPostgresConnections().map((connectionString) => ({
           connectionString,
           label: savedPostgresConnectionLabel(connectionString),
         }));
-    const mssqlConnections = IS_MAS_BUILD
+    const mssqlConnections = IS_MAS_BUILD || hideMssql
       ? undefined
       : readSavedMssqlConnections().map((profile) => ({
           id: profile.id,
@@ -161,6 +167,8 @@ export function useBrowserTree(): BrowserTreeState {
   }, [
     recentProjects,
     layerLibrary,
+    hidePostgres,
+    hideMssql,
     servicesLabel,
     recentLabel,
     databasesLabel,

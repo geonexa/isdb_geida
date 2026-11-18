@@ -13,6 +13,15 @@ import {
   type BasemapControlOptions,
   type ManagedRasterBasemap,
 } from "maplibre-gl-basemap-control";
+
+// GEIDA: only basemaps that work without a key and cover IsDB member countries. Left out: providers that need
+// a user's API key (Google, Mapbox, MapTiler, Stadia, Protomaps, TomTom, HERE, Amazon, Tianditu, Maptoolkit) and
+// single-country services (USGS, swisstopo, TopPlusOpen, OpenBasisKaart, AMap, Tencent).
+const GEIDA_EXCLUDED_PROVIDERS = new Set([
+  "google", "mapbox", "maptiler", "stadia", "protomaps", "tomtom", "here", "amazon", "tianditu", "maptoolkit",
+  "usgs", "swisstopo", "topplusopen", "openbasiskaart", "amap", "tencent",
+]);
+const GEIDA_BASEMAPS = DEFAULT_BASEMAPS.filter((b) => !GEIDA_EXCLUDED_PROVIDERS.has(b.provider ?? ""));
 import { pluginDisplayTitle } from "../plugin-i18n";
 import type { GeoLibreAppAPI, GeoLibrePlugin } from "../types";
 import { installBasemapThumbnails } from "./basemap-thumbnails";
@@ -341,7 +350,7 @@ function getBasemapControlOptions(app: GeoLibreAppAPI): BasemapControlOptions {
             },
           ],
         }
-      : {}),
+      : { basemaps: GEIDA_BASEMAPS, includeDefaultBasemaps: false }),
     collapsed: false,
     // Not used for layout (the dock owns placement); the control still reads it
     // when it builds its hidden toggle.

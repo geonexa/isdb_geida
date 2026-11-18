@@ -12,6 +12,55 @@ How to add an entry: [Maintaining the documentation](development/documentation.m
 Changes merged but not yet deployed go here, then move under a dated heading at release.
 
 ### Added
+- **WaPOR time series** analysis (Water resources, `backend/analyses/water/wapor_series/`): any FAO WaPOR v3 level 1
+  layer (precipitation, reference and actual evapotranspiration, transpiration, evaporation, interception, net
+  primary production, total biomass production, gross and net biomass water productivity, relative soil moisture)
+  per dekad, month or year, as the publication allows, for a point picked on the map (pixel value) or for polygons
+  (the area of influence, its administrative units, or one of the project's polygon layers: mean per polygon).
+  Outputs a chart, tables, a CSV, the mean map of the period and the trend per year (Sen's slope, Mann-Kendall).
+  Reads only the window it needs from FAO's COGs, cached (`apps/analysis/data/wapor.py`); trend test in
+  `apps/analysis/ops/timeseries.py`.
+- Analysis framework: `layer` parameters (pick one of the project's vector layers, filtered by geometry), `when`
+  rules that show a parameter or offer a choice only with other values, and `chart` outputs drawn in run results
+  and in reports. Project layers now carry their geometry (polygon, line, point) for analysis results too.
+- **Time series player for project layers with several dates** (`TimeSeries` in
+  `frontend/src/features/projects/workspace/satellite.tsx`): from and to dates, slider, play and pause, step,
+  speed and loop, the current date on the map. The map swaps periods without flashing (the new period loads above
+  the old one, `ProjectMap.tsx`) and loads the next two frames in the background.
+- **Project reports** (`backend/apps/reports/`, `frontend/src/features/projects/workspace/ReportsTab.tsx`): a
+  **Reports** tab in the project workspace. Pick finished analysis runs and what each shows (figures, maps,
+  tables, summary, method), add a summary and notes, then generate numbered versions in the background: a PDF
+  (WeasyPrint, A4, cover, contents with page numbers, running header and footer) and a web report (same content,
+  contents bar, Download PDF). Maps are SVG drawn on the server (Esri basemap, raster previews, vectors, area of
+  influence, legend, scale bar, north arrow); bar charts come from class tables. Versions are frozen copies.
+  Share links (7/30/90 days or no end date, revocable) open the latest version without signing in. New conda
+  packages `weasyprint` and `brotli-python`, pip `markdown`; migration `reports.0001`. Maps use Esri satellite
+  imagery by default (Light basemap as the option); the cover map has a globe locator (as the print layout's
+  overview) with the country highlighted and a marker at the project area.
+  The web report's maps are interactive (Leaflet 1.9.4, BSD-2, embedded in the page from
+  `backend/apps/reports/static/reports/vendor/leaflet/`; `imap.js`): pan and zoom, basemap switch, layer and
+  area toggles, opacity, feature details on click, full screen, reset view. Raster results reuse the image of the
+  static map; vectors are embedded as simplified GeoJSON (merged by legend class when very large). PDFs open in a
+  browser tab instead of downloading.
+- **Project layers in Analytics** (`frontend/gis/apps/web/src/components/panels/GeidaProjectLayers.tsx`,
+  `backend/apps/projects/project_layers.py`): the Analytics Layers panel has a project picker that lists the
+  project's area of influence, analysis run outputs and Toolbox outputs; each can be added to the map as a
+  normal GeoLibre layer for further analysis. New endpoints `GET /api/projects/<code>/layers/` and
+  `/layers/area/` (sign-in and project access required). `/analytics?project=<code>` opens a project directly.
+- **Analytics side panels styled like the project workspace**: a 76 px rail with the icon above its label and a
+  green edge on the open entry (Layers now above Browser), a Layers panel that opens at 440 px (as the project
+  side panel; narrower on small windows) and can be dragged wider, up to 720 px, for long layer names; Browser (and Comments) open at the
+  same width, bold panel title and square GEIDA controls.
+- **Raster colours in Analytics**: project rasters added from the Layers panel now show their analysis colours
+  instead of grey. Classified rasters (suitability, land cover, slope classes…) come as a one-byte GeoTIFF with
+  the legend's colour table and class names, keeping the class values; continuous rasters keep their values and
+  use the built-in colour map closest to the legend, stretched to its min and max. New endpoint
+  `GET /api/projects/<code>/layers/<id>/raster/` (style in the `X-GEIDA-Style` header). Toolbox raster results
+  now keep their legend (`legend_spec`); older ones get one worked out from their values.
+- **One copy per project layer in Analytics**: a project layer already on the map shows **Added** and isn't
+  added again (also on quick repeated clicks); clicking it (it reads **Remove** on hover) takes it off the map.
+- **GeoLibre credit in Analytics**: the status bar ends with "Built on GeoLibre · MIT licence", linking to the
+  GeoLibre repository (Qiusheng Wu and contributors).
 - **Site suitability** (`backend/analyses/planning/suitability/`, Site selection and planning): users set their
   own conditions in the run form (slope, elevation, land cover classes, rainfall, ETa, biomass, surface water,
   tree cover, population density, travel time, distance to roads / rivers / places / power lines / schools /
@@ -112,6 +161,30 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   `area_baseline` modules that used it; Population, Access to services, Slope and Land cover replace them.
 
 ### Changed
+- **Analytics page trimmed** (GeoLibre's UI profile in `frontend/gis/apps/web/public/deployment.json`, locked so
+  users can't undo it): US and France data portals, PostgreSQL, SQL Server and Iceberg, the Mapbox, ArcGIS and
+  Cesium engines, visual effects and demos (weather, sun, flight simulator, God's eye view, spinning globe, route
+  animation), field collection, GPS tracking, offline basemap, Share, Comments, Earth Engine, the AI Providers,
+  Geocoding and Cloud Storage settings, and Help's Website, GitHub, Feedback, Diagnostics and Check for Updates are
+  removed. The Browser panel lists only global services (OpenStreetMap, Sentinel-2 cloudless, GEBCO) and no
+  Databases section. Review of every item: `docs/planning/analytics-toolbar-review.md` Also removed:
+  everything that asks for an API key, token or outside account or opens another site (AI Assistant, GeoAgent,
+  Street View, Mapillary, ArcGIS Portal, NASA Earthaccess, Hugging Face, Cesium Ion, geocoding and routing,
+  Google Maps / Earth links, Wikipedia "What's here", the project Gallery, Environment Variables, Manage Plugins,
+  keyed basemaps and the Basemaps API keys page, the Diagnostics badge). The Command Palette follows the same
+  hidden lists. About describes GEIDA Analytics and credits GeoLibre (no version, update check or links).
+- **Analyses tab**: the "Ready only" filter is removed; each analysis still shows whether it is ready.
+- **Project header actions in a ⋮ menu**: Edit, Submit for review, Return, Publish and Delete draft moved from
+  buttons under the title to a menu at the end of the code and status line, leaving more room for the tabs' content.
+- **Project Analyses tab without the Data layers view**: Data Catalog layers that no built analysis uses yet are
+  shown inside the planned analysis they belong to, marked "Data only" (e.g. WaPOR ETa, transpiration,
+  evaporation and interception in Evapotranspiration; RET in ET deficit; rainfall in Precipitation), with the
+  same switch, period and GeoTIFF download. Layers used by built analyses (elevation, slope, hillshade, land
+  cover, WaPOR L1 biomass, field boundaries, population) and WaPOR L2 are no longer offered on the project page.
+  Mapping in `apps/geoportal/project_rs.py` (`ANALYSIS_LAYERS`).
+- **Projects are for signed-in users only.** Visitors no longer see published projects: the project list, project
+  pages and every project API (runs, files, evidence, Toolbox, map layouts) ask them to sign in, and the project
+  pages redirect to sign-in and back. Signed-in users still see all published projects.
 - **Seeding is one pipeline with one catalogue.** `REFERENCE_DATA_DIR/catalog.json` (outside the
   repository, default `geida_static_data/` next to it) lists every dataset: CRI library, member
   countries, OSM taxonomy, GADM, HydroATLAS; the analysis registry is a built-in step. One command, `manage.py seed`
@@ -181,6 +254,12 @@ Changes merged but not yet deployed go here, then move under a dated heading at 
   *2D map* (country, region or around the main map).
 
 ### Fixed
+- Project header: the ⋮ actions menu sat inside a paragraph (invalid HTML, a console warning).
+- Analytics: GeoLibre's `deployment.json` and `admin-profile.json` were fetched from the site root instead of
+  `/gis-assets/`, so they were never applied (`frontend/vite.config.ts` now rewrites the cast form of
+  `import.meta.env.BASE_URL` too).
+- Analytics: zooming in on the Esri basemaps (Satellite, Streets, Light, Dark) showed grey "Map data not yet
+  available" tiles; the tile URLs now ask Esri for empty tiles instead (`blankTile=false`), as on project maps.
 - Hydrology analyses: a failed WhiteboxTools step was reported as a success (the `whitebox` package ignores the
   executable's exit code and, with verbose mode off, its output), so a run stopped later on a missing file such
   as `streams.shp`. Each step now checks the exit code and the run's error quotes WhiteboxTools' message.

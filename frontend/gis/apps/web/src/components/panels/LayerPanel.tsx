@@ -29,6 +29,7 @@ import { masHidesDataSource } from "../../lib/mas-build";
 import { activeInterfaceProfile, isDataSourceVisible } from "../../lib/ui-profile";
 import { Button, ScrollArea, Separator } from "@geolibre/ui";
 import { Layers, PanelLeftOpen } from "lucide-react";
+import { GeidaProjectLayers } from "./GeidaProjectLayers";
 import { PasteStyleDialog } from "./PasteStyleDialog";
 import { participantCanEditLayer } from "../../lib/collab-protocol";
 import type { CollaborationApi } from "../../hooks/useCollaboration";
@@ -476,6 +477,7 @@ export function LayerPanel({
           onCollapse={() => setIsCollapsed(true)}
         />
         <LayerHoverControls className="border-b px-3 py-1.5" />
+        <GeidaProjectLayers mapControllerRef={mapControllerRef} />
       </div>
       <ScrollArea
         className="min-h-0 [&_[data-radix-scroll-area-viewport]]:touch-pan-y [&_[data-radix-scroll-area-viewport]]:overscroll-contain [&_[data-radix-scroll-area-viewport]>div]:block! [&_[data-radix-scroll-area-viewport]>div]:w-full! [&_[data-radix-scroll-area-viewport]>div]:min-w-0!"

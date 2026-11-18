@@ -47,7 +47,8 @@ export default function Home() {
             </h1>
             <p className="hero-tagline">Earth observation for every stage of an IsDB project</p>
             <div className="hero-actions">
-              <Link className="btn btn-light" to="/projects">Explore projects</Link>
+              <Link className="btn btn-light" to="/projects">Open projects</Link>
+              <a className="btn btn-ghost-light" href="#project-cycle">See how it works</a>
             </div>
           </div>
         </div>
@@ -56,19 +57,18 @@ export default function Home() {
       <section className="section components" aria-labelledby="comp-h">
         <div className="wrap">
           <div className="section-head">
-            <h2 id="comp-h">Three components, one objective</h2>
-            <p>Evidence-based project design and monitoring across the Bank, delivered through technology, action in real projects, and certified people.</p>
+            <h2 id="comp-h">Technology, practice and people</h2>
+            <p>GEIDA brings satellite evidence into how the Bank designs, supervises and evaluates its projects: a shared platform, applied in real operations, used by trained staff.</p>
           </div>
           <div className="comp-grid">
             {(site.data?.components ?? []).map((c) => (
               <article className="comp-card" key={c.key}>
                 <div className="comp-thumb">
                   <img src={c.image} alt="" loading="lazy" />
-                  <span className="comp-chip">Component {c.key}</span>
+                  <span className="comp-chip">{c.name}</span>
                 </div>
                 <div className="comp-body">
-                  <h3>{c.name}</h3>
-                  <p className="comp-title">{c.title}</p>
+                  <h3>{c.title}</h3>
                   <p>{c.text}</p>
                   <ul className="comp-items">{c.items.map((i) => <li key={i}>{i}</li>)}</ul>
                 </div>

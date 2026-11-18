@@ -32,6 +32,30 @@ LAYERS = {l["id"]: l for g in CATALOG for l in g["layers"]
 MASKED_TTL = 60 * 60 * 6
 
 
+# Catalogue layers the project page offers: (Analyses category, planned analysis the layer belongs to). Only
+# layers no built analysis uses yet; the Analyses tab shows them inside that planned analysis' row (or as their
+# own row in the category when analysis is None). Layers built analyses use (elevation, slope, hillshade, land
+# cover, WaPOR L1 biomass, field boundaries, population) reach the project through those analyses, so they are
+# not listed. When an analysis is built on a layer, remove the layer here.
+ANALYSIS_LAYERS = {
+    "precipitation": ("water", "precipitation"),
+    "eta": ("water", "evapotranspiration"),
+    "transpiration": ("water", "evapotranspiration"),
+    "evaporation": ("water", "evapotranspiration"),
+    "interception": ("water", "evapotranspiration"),
+    "ret": ("water", "et_deficit"),
+    "surface-water": ("water", "surface_water"),
+    "gbwp": ("water", "water_productivity"),
+    "nbwp": ("water", "water_productivity"),
+    "cropland": ("land", "cropland_irrigation"),
+    "irrigation": ("land", "cropland_irrigation"),
+    "ndvi": ("land", "vegetation_anomaly"),
+    "lst": ("hazards", "heat"),
+    "temperature": ("hazards", "climate_profile"),
+    "wayback": ("monitoring", "before_after_imagery"),
+}
+
+
 def _phases(layer):
     """Project phases a layer is offered in: its catalogue "phases" list, else all of them."""
     from apps.analysis.models import PHASES
@@ -46,8 +70,8 @@ def _layers():
     groups = []
     for g in catalog_with_periods(CATALOG):
         layers = [{**{k: l[k] for k in LAYER_FIELDS if k in l}, **({"minzoom": 0} if l.get("overview") else {}), **_style_info(l),
-                   "phases": _phases(l)}
-                  for l in g["layers"] if l["id"] in LAYERS]
+                   "phases": _phases(l), "category": ANALYSIS_LAYERS[l["id"]][0], "analysis": ANALYSIS_LAYERS[l["id"]][1]}
+                  for l in g["layers"] if l["id"] in LAYERS and l["id"] in ANALYSIS_LAYERS]
         if layers:
             groups.append({"group": g["group"], "layers": layers})
     return groups

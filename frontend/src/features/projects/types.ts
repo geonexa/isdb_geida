@@ -142,9 +142,15 @@ export type ImportRow = {
 // Analysis modules (/api/analysis/)
 export type DatasetInfo = { id: string; title: string; kind: string; resolution: string; version: string; reference_date: string; citation: string; licence: string };
 /** point: [lon, lat], picked on the project map in the run form (default null = the user must pick). */
+/** Shown (or offered) only while other parameters have one of these values. */
+export type ParamWhen = Record<string, (number | string)[]>;
 export type ModuleParam = {
-  name: string; type: "number" | "choice" | "point" | "criteria"; default: number | string | [number, number] | Criterion[] | null; label: string;
-  min?: number; max?: number; choices?: { value: number | string; label: string }[];
+  name: string; type: "number" | "choice" | "point" | "criteria" | "layer" | "text" | "boolean";
+  default: number | string | [number, number] | Criterion[] | null; label: string;
+  min?: number; max?: number; choices?: { value: number | string; label: string; when?: ParamWhen | null }[];
+  when?: ParamWhen | null;
+  /** layer: the geometry the project layer must have. */
+  geometry?: "polygon" | "line" | "point" | null;
   /** criteria: the layers conditions can use. */
   layers?: CriteriaLayer[];
 };
@@ -181,7 +187,10 @@ export type RunOutput =
       legend: { label: string; color: string }[]; unit?: string; resolution_m?: number;
       stats?: { count: number; min: number | null; max: number | null; mean: number | null } }
   | { type: "vector"; name: string; title: string; file: string; style: VectorStyle }
-  | { type: "file"; name: string; title: string; file: string };
+  | { type: "file"; name: string; title: string; file: string }
+  /** A chart: one series per line (or bars), x as text (a period), y a number or null (a gap). */
+  | { type: "chart"; name: string; title: string; kind: "line" | "bar"; x_label?: string; y_label?: string; unit?: string;
+      note?: string; series: { name: string; points: [string, number | null][] }[] };
 export type Evidence = {
   id: number; run: number; cri: string; indicator: number | null; indicator_statement: string; phase: string; instrument: string;
   label: string; value: number | null; unit: string; reference_date: string; role: string; caveats: string;

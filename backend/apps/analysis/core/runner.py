@@ -139,6 +139,18 @@ class RunContext:
             raise AnalysisError(f"{label}: pick a point on the map (longitude, latitude).")
         return tuple(v)
 
+    def layer(self, name):
+        """A `layer` parameter as a GeoJSON FeatureCollection (lon/lat): one of the project's vector layers."""
+        from apps.projects.project_layers import vector_layer_features
+        layer_id = self.params.get(name)
+        if not layer_id:
+            label = next((p.get("label", name) for p in self.manifest.get("parameters", []) or [] if p["name"] == name), name)
+            raise AnalysisError(f"{label}: choose a layer.")
+        try:
+            return vector_layer_features(self.run.project, layer_id)
+        except LookupError as exc:
+            raise AnalysisError(str(exc)) from exc
+
     def area_in(self, epsg=None):
         """The area of influence as GeoJSON in the run's UTM zone (or another EPSG code)."""
         return json.loads(self.area.transform(epsg or self.epsg, clone=True).geojson)
@@ -331,6 +343,12 @@ class RunContext:
 
     def add_file(self, name, title, path):
         self._outputs.append({"type": "file", "name": name, "title": title, "file": Path(path).name})
+
+    def add_chart(self, name, title, series, x_label="", y_label="", unit="", kind="line", note=""):
+        """A chart: series = [{"name", "points": [[x, y], ...]}] with x as text (a date or period) and y a number
+        or None (a gap). kind: line or bar."""
+        self._outputs.append({"type": "chart", "name": name, "title": title, "kind": kind, "series": series,
+                              "x_label": x_label, "y_label": y_label, "unit": unit, "note": note})
 
     def add_metric(self, name, label, value, unit="", note=""):
         self._outputs.append({"type": "metric", "name": name, "title": label, "value": value, "unit": unit, "note": note})

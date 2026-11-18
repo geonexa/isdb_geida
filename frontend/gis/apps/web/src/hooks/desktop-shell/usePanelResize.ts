@@ -13,11 +13,11 @@ import type { LayoutOptions } from "../useLayoutOptions";
 
 const DEFAULT_SIDE_PANEL_WIDTH = 320;
 const MIN_SIDE_PANEL_WIDTH = 180;
-const MAX_SIDE_PANEL_WIDTH = 560;
+const MAX_SIDE_PANEL_WIDTH = 720; // GEIDA: room for long project layer names
 // Width of a side panel's collapsed rail (`md:w-11` = 2.75rem). The Style panel
 // stays mounted (collapsed) beside the notebook, so its rail still occupies this
 // much of the row when computing the map/notebook 50/50 split.
-const COLLAPSED_PANEL_RAIL_WIDTH = 44;
+const COLLAPSED_PANEL_RAIL_WIDTH = 76; // GEIDA: the rail is as wide as the project workspace's (index.css .geida-rail)
 // The notebook panel hosts a full Jupyter UI, so it needs far more room than
 // the layer/style side panels.
 const DEFAULT_NOTEBOOK_PANEL_WIDTH = 480;
@@ -38,6 +38,14 @@ function initialSidePanelWidth(): number {
   if (typeof window === "undefined") return DEFAULT_SIDE_PANEL_WIDTH;
   const cap = Math.round(window.innerWidth * 0.3);
   return clamp(cap, MIN_SIDE_PANEL_WIDTH, DEFAULT_SIDE_PANEL_WIDTH);
+}
+
+// GEIDA: the Layers and Browser panels open at about a quarter of the window (280 to 360 px), narrower on
+// small windows; its edge can be dragged (MIN/MAX_SIDE_PANEL_WIDTH).
+const GEIDA_LAYER_PANEL_WIDTH = 360;
+export function geidaLayerPanelWidth(): number {
+  if (typeof window === "undefined") return GEIDA_LAYER_PANEL_WIDTH;
+  return clamp(Math.round(window.innerWidth * 0.26), 280, GEIDA_LAYER_PANEL_WIDTH);
 }
 
 type ShellStyle = CSSProperties &
@@ -67,7 +75,7 @@ export function usePanelResize({
   // mid-drag still detaches the global listeners and restores document.body.
   const activeResizeCleanupRef = useRef<(() => void) | null>(null);
   useEffect(() => () => activeResizeCleanupRef.current?.(), []);
-  const [layerPanelWidth, setLayerPanelWidth] = useState(initialSidePanelWidth);
+  const [layerPanelWidth, setLayerPanelWidth] = useState(geidaLayerPanelWidth);
   const [stylePanelWidth, setStylePanelWidth] = useState(initialSidePanelWidth);
   const [notebookPanelWidth, setNotebookPanelWidth] = useState(DEFAULT_NOTEBOOK_PANEL_WIDTH);
   // Opening the notebook (Processing → Jupyter Notebook) splits the workspace

@@ -14,7 +14,7 @@ import {
   type ProjectedReadout,
 } from "../../lib/coordinate-format";
 import { cn } from "@geolibre/ui";
-import { Bug, DatabaseZap, TriangleAlert } from "lucide-react";
+import { DatabaseZap, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatAccuracy, formatSpeedKmh } from "../../lib/gps-tracking";
 import { autosavePausedMessage } from "../../lib/autosave-status";
@@ -50,9 +50,6 @@ export function StatusBar({
   autosavePaused = false,
   autosaveUnavailable = false,
   compact = false,
-  diagnosticsErrorCount,
-  diagnosticsWarningCount,
-  onOpenDiagnostics,
 }: StatusBarProps) {
   const { t, i18n } = useTranslation();
   const pointerCoords = useAppStore((s) => s.pointerCoords);
@@ -68,7 +65,6 @@ export function StatusBar({
   const setPreferences = useAppStore((s) => s.setPreferences);
   const gpsStatus = useAppStore((s) => s.gpsStatus);
   const mapView = useAppStore((s) => s.mapView);
-  const diagnosticsCount = diagnosticsErrorCount + diagnosticsWarningCount;
   // The pointer readout re-renders this bar on every mouse move; build the
   // autosave notice only when its inputs change (#2860).
   const autosaveNotice = useMemo(() => {
@@ -216,21 +212,14 @@ export function StatusBar({
           {autosaveNotice.label}
         </span>
       ) : null}
-      <button
-        type="button"
-        className={cn(
-          "inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 hover:bg-accent hover:text-accent-foreground",
-          !autosaveNotice && "ms-auto",
-          diagnosticsErrorCount > 0 && "text-red-700 dark:text-red-300",
-          diagnosticsErrorCount === 0 &&
-            diagnosticsWarningCount > 0 &&
-            "text-amber-700 dark:text-amber-300",
-        )}
-        onClick={onOpenDiagnostics}
+      {/* GEIDA: no Diagnostics badge (its dialog reports issues to GeoLibre's GitHub). */}
+      {/* GEIDA: Analytics is GeoLibre with GEIDA's changes on top; credit it (MIT licence). */}
+      <span
+        className={cn("geida-credit inline-flex shrink-0 items-center gap-1 border-s ps-3", !autosaveNotice && "ms-auto")}
+        title="GEIDA Analytics is built on GeoLibre by Qiusheng Wu and contributors (MIT licence)"
       >
-        <Bug className="h-3 w-3" />
-        {compact ? "Diag" : "Diagnostics"}: {diagnosticsCount}
-      </button>
+        {compact ? "GeoLibre" : "Built on GeoLibre · MIT licence"}
+      </span>
     </footer>
   );
 }

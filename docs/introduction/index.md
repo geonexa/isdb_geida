@@ -31,7 +31,7 @@ GEIDA turns that guidance into a working platform.
 | Area | Path | For |
 |---|---|---|
 | **Home and content pages** | `/`, `/<section>` | Everyone: what GEIDA does, the Knowledge Hub, training links |
-| **Projects** | `/projects` | Project teams: onboarding, Results Framework, review |
+| **Projects** | `/projects` | Signed-in users: onboarding, Results Framework, review |
 | **Project workspace** | `/projects/<code>` | Project teams: map, analyses and data layers, evidence, documents, map export |
 | **Data Catalog (Geo-Portal)** | `/geoportal` | Everyone: browse raster and vector layers for any member country, draw areas, download clipped data |
 | **Analytics** | `/analytics` | Analysts: full GIS workspace (layers, styling, processing, models) |

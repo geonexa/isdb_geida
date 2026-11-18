@@ -25,6 +25,7 @@ import {
   filterCommandsByPrivileges,
 } from "../../lib/deployment-gates";
 import { useGlobalShortcuts } from "../useGlobalShortcuts";
+import { useDesktopSettingsStore } from "../useDesktopSettings";
 
 // Atmospheric Effects, Directions, Reverse Geocode, Gridlines, Clouds,
 // Precipitation, and the deck.gl viz renderer get no palette toggle: they are
@@ -209,9 +210,13 @@ export function useToolbarCommands(options: UseToolbarCommandsOptions): Command[
   // both vocabularies, the deployment's (issue #1673) and the session role's
   // (issue #1672), or the model gated by whichever one is missing is a UI
   // convention rather than an access control.
+  // GEIDA: the palette, cheat sheet and shortcuts also leave out what the UI profile (deployment.json) hides
+  // from the menus: a hidden menu item hides its commands (same id or below it), a hidden data source its
+  // Add Data command. Some palette ids differ from the menu ids, so they are mapped here.
+  const uiProfile = useDesktopSettingsStore((state) => state.desktopSettings.uiProfile);
   const allowedCommands = useMemo(
     () =>
-      filterCommandsByPrivileges(
+      filterHiddenCommands(filterCommandsByPrivileges(
         filterCommandsByCapabilities(
           commands.filter(
             (command) =>
@@ -226,8 +231,9 @@ export function useToolbarCommands(options: UseToolbarCommandsOptions): Command[
           deploymentCapabilities,
         ),
         appPrivileges,
-      ),
+      ), uiProfile),
     [
+      uiProfile,
       commands,
       deploymentCapabilities,
       appPrivileges,
@@ -250,4 +256,21 @@ export function useToolbarCommands(options: UseToolbarCommandsOptions): Command[
   });
 
   return allowedCommands;
+}
+
+/** Palette command ids whose menu item has a different id. */
+const COMMAND_MENU_ALIASES: Record<string, string> = { "help.updates": "help.checkForUpdates" };
+
+function filterHiddenCommands<T extends { id: string }>(
+  commands: T[],
+  profile: { enabled: boolean; hiddenMenuItems: string[]; hiddenDataSources: string[]; hiddenMenus: string[] },
+): T[] {
+  if (!profile.enabled) return commands;
+  const hidden = [...profile.hiddenMenuItems, ...profile.hiddenMenus];
+  const sources = new Set(profile.hiddenDataSources);
+  return commands.filter((command) => {
+    const id = COMMAND_MENU_ALIASES[command.id] ?? command.id;
+    if (id.startsWith("add.") && sources.has(id.slice(4))) return false;
+    return !hidden.some((h) => id === h || id.startsWith(`${h}.`));
+  });
 }

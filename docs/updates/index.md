@@ -7,6 +7,7 @@ first.
 
 | Date | Update | Action needed on servers |
 |---|---|---|
+| 2026-11-16 | [Project reports, server Toolbox, Analytics project layers](2026-11-16.md) | Yes: conda environment, migrations |
 | 2026-11-09 | [Documentation and branding](2026-11-09.md) | No |
 | 2026-11-06 | [Raster layers from cloud-optimised GeoTIFFs](2026-11-06.md) | Yes: `.env`, dependencies |
 | 2026-11-02 | [Repository restructure](2026-11-02.md) | Yes: data folder, conda environment |

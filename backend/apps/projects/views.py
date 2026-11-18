@@ -23,7 +23,7 @@ PAGE = 500
 
 
 def _need_sign_in():
-    return error("Sign in to work on projects.", status=401)
+    return error("Sign in to see and work on projects.", status=401)
 
 
 def log(project, user, action, **detail):
@@ -50,6 +50,8 @@ def _detail(request, p):
 
 
 def _get(request, code, edit=False):
+    if not request.user.is_authenticated:
+        return None, _need_sign_in()
     p = Project.objects.select_related("owner").filter(code=code.upper()).first()
     if p is None or not can_view(request.user, p):
         return None, error("Project not found.", status=404)
@@ -95,6 +97,8 @@ def cri_search(request):
 
 @require_http_methods(["GET", "POST"])
 def project_list(request):
+    if not request.user.is_authenticated:
+        return _need_sign_in()
     if request.method == "POST":
         return _create(request)
     qs = visible(Project.objects.select_related("owner", "area"), request.user)

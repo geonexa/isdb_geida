@@ -95,6 +95,10 @@ source is vendored in `frontend/gis/` and built together with GEIDA:
 - GeoLibre's static files are served at `/gis-assets/`.
 - The Analytics workspace bundles its own copy of the GeoLibre processing engine (`geolibre-wasm`). The
   project Toolbox doesn't run in the browser: it calls the server (`/api/toolbox/`), which runs the same engine.
+- **Project layers** (`gis/apps/web/src/components/panels/GeidaProjectLayers.tsx`, shown in GeoLibre's Layers
+  panel): a project picker and the project's layers from `GET /api/projects/<code>/layers/`. Vectors are added
+  with the store's `addGeoJsonLayer` (styled from the run's style), rasters with `addRasterToMap` from the
+  downloaded GeoTIFF (Django's file responses don't serve byte ranges, so the file is fetched whole). Classified rasters use the GeoTIFF's colour table (`colormap: palette`); continuous ones the named colour map nearest to the legend palette, sampled from the renderer's colour-map sprite.
 
 Keep changes inside `frontend/gis/` small and limited to what a GEIDA feature needs.
 

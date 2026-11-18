@@ -178,19 +178,27 @@ class ProjectSatelliteTests(TestCase):
     def setUp(self):
         self.client.force_login(self.owner)
 
-    def test_lists_cog_rasters_by_group(self):
+    def test_lists_layers_no_analysis_uses_with_their_category(self):
+        from apps.analysis.core.registry import read_planned
+        from . import project_rs
+
+        planned = {a["id"]: a["category"] for a in read_planned(built=set())}
+        for layer, (cat, analysis) in project_rs.ANALYSIS_LAYERS.items():   # each points at a planned analysis
+            self.assertEqual(planned.get(analysis), cat, layer)
         groups = self.client.get("/api/projects/UGA1072/satellite/").json()["groups"]
-        ids = [l["id"] for g in groups for l in g["layers"]]
-        self.assertIn("eta", ids)
-        self.assertIn("surface-water", ids)
-        self.assertIn("hillshade", ids)  # projects_only layers are offered here
-        self.assertIn("slope", ids)
-        self.assertNotIn("temperature", ids)  # planned
-        self.assertNotIn("member-countries", ids)
+        layers = {l["id"]: l for g in groups for l in g["layers"]}
+        self.assertEqual((layers["eta"]["category"], layers["eta"]["analysis"]), ("water", "evapotranspiration"))
+        self.assertEqual(layers["surface-water"]["analysis"], "surface_water")
+        self.assertEqual((layers["irrigation"]["category"], layers["irrigation"]["analysis"]), ("land", "cropland_irrigation"))
+        for covered in ("hillshade", "slope", "elevation", "landcover", "biomass-global", "ftw-fields", "population"):
+            self.assertNotIn(covered, layers)   # reached through their analyses
+        self.assertNotIn("biomass", layers)  # WaPOR L2: analyses use L1 only
+        self.assertNotIn("temperature", layers)  # planned
+        self.assertNotIn("member-countries", layers)
 
     def test_needs_access_and_an_area(self):
         self.client.logout()
-        self.assertEqual(self.client.get("/api/projects/UGA1072/satellite/").status_code, 404)
+        self.assertEqual(self.client.get("/api/projects/UGA1072/satellite/").status_code, 401)   # sign in first
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get("/api/projects/UGA2000/satellite/").status_code, 400)
         self.assertEqual(self.client.get("/api/projects/UGA1072/satellite/nope/tiles/").status_code, 404)
@@ -221,7 +229,7 @@ class ProjectSatelliteTests(TestCase):
         layers = {l["id"]: l for g in self.client.get("/api/projects/UGA1072/satellite/").json()["groups"] for l in g["layers"]}
         self.assertEqual(layers["eta"]["style"]["cmap"], "gnbu")
         self.assertEqual(layers["eta"]["style"]["range"], [0, 1500])
-        self.assertNotIn("style", layers["landcover"])  # classes keep their own colours
+        self.assertNotIn("style", layers["irrigation"])  # classes keep their own colours
 
     def test_palette_and_range_reach_the_tile_server(self):
         r = self.client.get("/api/projects/UGA1072/satellite/eta/tiles/?year=2024&cmap=viridis_r&range=0,900").json()
@@ -233,12 +241,14 @@ class ProjectSatelliteTests(TestCase):
         self.assertIn("rescale=0%2C900", r["Location"])
 
     def test_field_boundaries_are_vector_tiles(self):
-        layers = {l["id"]: l for g in self.client.get("/api/projects/UGA1072/satellite/").json()["groups"] for l in g["layers"]}
-        ftw = layers["ftw-fields"]
+        from . import project_rs
+
+        ftw = project_rs.LAYERS["ftw-fields"]     # not listed on the project page (Field boundaries analysis uses it)
         self.assertEqual(ftw["kind"], "pmtiles")
         self.assertIn("{year}", ftw["pmtiles"]["url"])
         self.assertEqual([l["source_layer"] for l in ftw["pmtiles"]["layers"]], ["cells", "fields"])
         self.assertEqual(ftw["legend"]["type"], "ramp")  # field density, as in the FTW app
+        self.assertNotIn("ftw-fields", project_rs.ANALYSIS_LAYERS)
         # Read by the browser from the archive: no GEIDA tiles or GeoTIFF.
         self.assertEqual(self.client.get("/api/projects/UGA1072/satellite/ftw-fields/tiles/?year=2025").status_code, 400)
         self.assertEqual(self.client.get("/api/projects/UGA1072/satellite/ftw-fields/download/?year=2025").status_code, 400)

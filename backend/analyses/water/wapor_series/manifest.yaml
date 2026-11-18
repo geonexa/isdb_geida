@@ -1,0 +1,83 @@
+id: wapor_series
+version: 0.1.0
+title: WaPOR time series
+question: How do rainfall, water use and biomass change over time at a point or in each zone?
+description: >
+  Reads a FAO WaPOR v3 level 1 layer (global, 300 m; rainfall about 5 km and reference
+  evapotranspiration about 30 km) for every dekad, month or year in the chosen years. For a point, it gives
+  the value of the pixel under it over time; for polygons (the area of influence, its administrative units
+  or one of the project's polygon layers, such as fields or sub-basins), the mean of each polygon over time.
+  Reports the series as a chart and a table, the mean map of the period, and the trend per year.
+status: experimental
+category: water
+themes: [water, agriculture, environment, climate]
+phases: [preparation, implementation, completion]
+cri: []
+inputs:
+  required: []
+  optional: []
+parameters:
+  - name: variable
+    type: choice
+    default: AETI
+    label: Data
+    choices:
+      - {value: PCP, label: "Precipitation (mm)"}
+      - {value: RET, label: "Reference evapotranspiration (mm)"}
+      - {value: AETI, label: "Actual evapotranspiration and interception (mm)"}
+      - {value: T, label: "Transpiration (mm)"}
+      - {value: E, label: "Evaporation (mm)"}
+      - {value: I, label: "Interception (mm)"}
+      - {value: NPP, label: "Net primary production (gC/m²)"}
+      - {value: TBP, label: "Total biomass production (kg/ha)"}
+      - {value: GBWP, label: "Gross biomass water productivity (kg/m³)"}
+      - {value: NBWP, label: "Net biomass water productivity (kg/m³)"}
+      - {value: RSM, label: "Relative soil moisture (%)"}
+  - name: step
+    type: choice
+    default: M
+    label: Time step
+    choices:
+      - {value: D, label: "Dekadal (10 days)", when: {variable: [PCP, RET, AETI, T, E, I, NPP, RSM]}}
+      - {value: M, label: Monthly, when: {variable: [PCP, RET, AETI, NPP]}}
+      - {value: A, label: Annual, when: {variable: [PCP, RET, AETI, T, E, I, TBP, GBWP, NBWP]}}
+  - {name: start_year, type: number, default: 2020, min: 2018, max: 2026, label: From year}
+  - {name: end_year, type: number, default: 2024, min: 2018, max: 2026, label: To year}
+  - name: aoi
+    type: choice
+    default: area
+    label: Where
+    choices:
+      - {value: point, label: A point on the map}
+      - {value: area, label: The area of influence}
+      - {value: zones, label: Administrative units in the area}
+      - {value: layer, label: "Polygons from a project layer (fields, sub-basins…)"}
+  - {name: point, type: point, label: Point, when: {aoi: [point]}}
+  - name: zone_level
+    type: choice
+    default: 2
+    label: Units
+    when: {aoi: [zones]}
+    choices: [{value: 1, label: Province / region (level 1)}, {value: 2, label: District (level 2)}, {value: 3, label: Sub-district (level 3)}]
+  - {name: layer, type: layer, geometry: polygon, label: Polygon layer, when: {aoi: [layer]}}
+outputs:
+  - {type: metric, name: mean}
+  - {type: metric, name: highest}
+  - {type: metric, name: lowest}
+  - {type: metric, name: trend}
+  - {type: chart, name: series}
+  - {type: table, name: by_zone}
+  - {type: table, name: values}
+  - {type: file, name: csv}
+  - {type: raster, name: mean_map, optional: true}     # not for a point
+  - {type: vector, name: zones}
+requires: [gdal]
+limits: {max_area_km2: 200000}
+queue: raster
+runtime: under a minute for a few years; a few minutes for dekadal series over many years
+citations: ["FAO WaPOR v3, level 1 (global), FAO 2024, CC BY 4.0"]
+steps:
+  - periods: the WaPOR mapset for the data and time step (e.g. L1-AETI-M), its published periods in the chosen years
+  - read: for each period, only the window around the point or polygons, from FAO's cloud-optimised GeoTIFFs (scale factor applied, no-data removed); windows are cached
+  - zonal: mean of the pixels whose centre falls in each polygon (all touched pixels for polygons smaller than a pixel); a point takes the pixel it falls in
+  - trend: Sen's slope per year with the Mann-Kendall test, on yearly means (yearly values for an annual step)

@@ -163,13 +163,16 @@ export interface GeidaBasemap extends RasterBasemapTiles {
 }
 
 const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+// Without it Esri answers tiles it has no imagery for with a grey "Map data not yet available" picture; with it
+// they come back empty, so the map keeps the coarser tile underneath (as on GEIDA's project maps).
+const NO_PLACEHOLDER = "?blankTile=false";
 
 export const GEIDA_BASEMAPS: readonly GeidaBasemap[] = [
   {
     id: "geida-light",
     name: "Light",
     styleUrl: sentinel("geida-light"),
-    tileUrl: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+    tileUrl: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}${NO_PLACEHOLDER}`,
     thumb: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/3/3/4`,
     maxZoom: 16,
     attribution: "&copy; Esri, HERE, Garmin, OpenStreetMap contributors",
@@ -178,7 +181,7 @@ export const GEIDA_BASEMAPS: readonly GeidaBasemap[] = [
     id: "geida-streets",
     name: "Streets",
     styleUrl: sentinel("geida-streets"),
-    tileUrl: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}`,
+    tileUrl: `${ESRI}/World_Street_Map/MapServer/tile/{z}/{y}/{x}${NO_PLACEHOLDER}`,
     thumb: `${ESRI}/World_Street_Map/MapServer/tile/3/3/4`,
     maxZoom: 19,
     attribution: "Tiles &copy; Esri, TomTom, Garmin, FAO, NOAA, USGS",
@@ -187,7 +190,7 @@ export const GEIDA_BASEMAPS: readonly GeidaBasemap[] = [
     id: "geida-satellite",
     name: "Satellite",
     styleUrl: sentinel("geida-satellite"),
-    tileUrl: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`,
+    tileUrl: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}${NO_PLACEHOLDER}`,
     thumb: `${ESRI}/World_Imagery/MapServer/tile/3/3/4`,
     maxZoom: 19,
     attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
@@ -216,7 +219,7 @@ export const GEIDA_BASEMAPS: readonly GeidaBasemap[] = [
     id: "geida-dark",
     name: "Dark",
     styleUrl: sentinel("geida-dark"),
-    tileUrl: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+    tileUrl: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}${NO_PLACEHOLDER}`,
     thumb: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/3/3/4`,
     maxZoom: 16,
     attribution: "&copy; Esri, HERE, Garmin, OpenStreetMap contributors",

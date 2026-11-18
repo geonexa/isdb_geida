@@ -3,6 +3,7 @@ python-dotenv
 gunicorn
 psycopg[binary]
 openpyxl
+markdown            # METHOD.md to HTML in project reports (apps/reports)
 rasterio            # comes from conda-forge via environment.yml (pip sees it installed)
 scipy
 pyyaml

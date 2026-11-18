@@ -1,15 +1,13 @@
 import { getRightPanel } from "@geolibre/plugins";
 import { notifyPanelRenderFailed } from "../../lib/panel-render-failure";
 import { useEffect, useState } from "react";
-import {
-  PLUGIN_PANEL_DEFAULT_WIDTH,
-  clampPluginPanelWidth,
-} from "../../components/panels/PluginRightPanel";
+import { clampPluginPanelWidth } from "../../components/panels/PluginRightPanel";
 import { BROWSER_PANEL_ID } from "../useRegisterBrowserPanel";
 import { COMMENTS_PANEL_ID } from "../useRegisterCommentsPanel";
 import { OBIA_PANEL_ID } from "../../lib/obia/obia-panel";
 import type { LayoutOptions } from "../useLayoutOptions";
 import { useRightPanelState } from "../useRightPanels";
+import { geidaLayerPanelWidth } from "./usePanelResize";
 
 /**
  * Hosts the active right-dock panel's content and its shared width.
@@ -18,7 +16,8 @@ import { useRightPanelState } from "../useRightPanels";
  * @returns The active panel id, the dock content hosts, and the panel width.
  */
 export function useRightPanelHost(layoutOptions: LayoutOptions) {
-  const [pluginPanelWidth, setPluginPanelWidth] = useState(PLUGIN_PANEL_DEFAULT_WIDTH);
+  // GEIDA: Browser and the other docked panels open as wide as the Layers panel.
+  const [pluginPanelWidth, setPluginPanelWidth] = useState(geidaLayerPanelWidth);
   // The active plugin panel's content lives in this one host element (created
   // once per app instance). The active dock slot adopts it via appendChild, so
   // moving the panel between docks relocates the same DOM and preserves the
@@ -105,7 +104,7 @@ export function useRightPanelHost(layoutOptions: LayoutOptions) {
   useEffect(() => {
     const panel = activePanelId ? getRightPanel(activePanelId) : undefined;
     if (!panel) return;
-    setPluginPanelWidth(clampPluginPanelWidth(panel.defaultWidth ?? PLUGIN_PANEL_DEFAULT_WIDTH));
+    setPluginPanelWidth(clampPluginPanelWidth(panel.defaultWidth ?? geidaLayerPanelWidth()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanelId]);
   return {

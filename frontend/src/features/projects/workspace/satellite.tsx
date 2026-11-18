@@ -1,8 +1,8 @@
 import "@/shared/styles/catalog.css";
 
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Download, Grid3x3, Info, LoaderCircle, Search } from "lucide-react";
-import { useState } from "react";
+import { Download, Film, Info, LoaderCircle, Pause, Play, Repeat, SkipBack, SkipForward } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { api, ApiError } from "@/shared/api/client";
 import { useToast } from "@/shared/components/Toasts";
@@ -25,6 +25,8 @@ export type SatLayer = {
   minzoom?: number;
   /** Project phases the layer is offered in (preparation, implementation, completion). */
   phases?: string[];
+  /** The Analyses category the layer is listed in (water, land, hazards, …), and the planned analysis it belongs to. */
+  category?: string; analysis?: string;
   /** Continuous layers drawn with a named palette: the default palette and value range, which users may change. */
   style?: { cmap: string; range: [number, number] };
   /** "pmtiles" for vector tiles drawn in the browser (no GEIDA tile route, no download). */
@@ -49,7 +51,11 @@ export const isVectorTiles = (l: SatLayer) => l.kind === "pmtiles" && !!l.pmtile
 /** Layers switched on, by id: period, opacity, and palette / value range when changed. */
 export type SatState = Record<string, { year?: number | string; opacity: number; cmap?: string; range?: [number, number];
   /** Vector tile layers: hide features scoring below this (0 to 100). */
-  threshold?: number }>;
+  threshold?: number;
+  /** Periods the map loads in the background (the next frames of a playing time series). */
+  preload?: (number | string)[];
+  /** The time series player is open: the map shows the layer's date. */
+  series?: boolean }>;
 
 export function useSatelliteLayers(code: string, enabled: boolean) {
   return useQuery({
@@ -106,21 +112,18 @@ export function toggleSat(on: SatState, l: SatLayer): SatState {
 }
 
 /**
- * Data layers in the Analyses tab: the Data Catalog's rasters in its sections
- * (Climate and water, Vegetation and land, …), cut to the area of influence. Each
- * layer switches on with its period and a GeoTIFF download; display settings
- * (opacity, palette, range) are in the map's Layers panel.
+ * Data Catalog layers that no analysis uses yet, listed in their Analyses category: each switches on
+ * with its period and (for value layers) a GeoTIFF download, cut to the area of influence. Display
+ * settings (opacity, palette, range) are in the map's Layers panel.
  */
-export function DataLayers({ code, groups, on, setOn, errors, loading, phase }: {
-  code: string; groups: SatGroup[]; on: SatState; setOn: (s: SatState) => void;
+export function LayerList({ code, layers, on, setOn, errors, loading }: {
+  code: string; layers: SatLayer[]; on: SatState; setOn: (s: SatState) => void;
   errors: Record<string, string>; loading: Set<string>;
-  /** Only layers offered in this phase are listed (layers already on stay on the map). */
-  phase: string;
 }) {
   const toast = useToast();
-  const [q, setQ] = useState("");
   const [info, setInfo] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [series, setSeries] = useState<string | null>(null);
   const patch = (id: string, p: Partial<SatState[string]>) => setOn({ ...on, [id]: { ...on[id], ...p } });
 
   async function download(l: SatLayer) {
@@ -141,89 +144,159 @@ export function DataLayers({ code, groups, on, setOn, errors, loading, phase }: 
     } finally { setDownloading(null); }
   }
 
-  const needle = q.trim().toLowerCase();
-  const shown = groups
-    .map((g) => ({ ...g, layers: g.layers.filter((l) => (!l.phases || l.phases.includes(phase)) && (!needle || `${l.name} ${l.source}`.toLowerCase().includes(needle))) }))
-    .filter((g) => g.layers.length);
-  const onCount = Object.keys(on).length;
-
   return (
-    <div className="pw-datalayers">
-      <p className="muted small">
-        Rainfall, water use, vegetation, land cover and terrain from open data, cut to the area of influence.
-        Switch a layer on to add it to the map; change its colours and opacity in the map's Layers panel.
+    <ul className="pw-layer-list">
+      {layers.map((l) => {
+        const st = on[l.id];
+        return (
+          <li key={l.id} className={`gp-item${st ? " is-on" : ""}${loading.has(l.id) ? " is-loading" : ""}`}>
+            <label className="gp-switch">
+              <input type="checkbox" checked={!!st} onChange={() => setOn(toggleSat(on, l))} />
+              <span className="gp-switch-ui" aria-hidden="true"></span>
+              <span className="visually-hidden">Show {l.name}</span>
+            </label>
+            <div className="gp-item-body">
+              <span className="gp-item-name">{l.name}</span>
+              <span className="gp-item-meta">{l.view_only ? "View only · " : ""}{isVectorTiles(l) ? "Vector · " : ""}{l.source} · {l.res}</span>
+            </div>
+            <button type="button" className="gp-icon-btn gp-info-btn" aria-expanded={info === l.id} aria-label={`About ${l.name}`} onClick={() => setInfo(info === l.id ? null : l.id)}>
+              <Info aria-hidden="true" />
+            </button>
+            {st && (
+              <div className="pw-dl-row">
+                {l.years && l.years.length > 1 && (
+                  <select className="input" value={st.year} aria-label={`${l.name} ${(l.period_label ?? "year").toLowerCase()}`}
+                    onChange={(e) => patch(l.id, { year: typeof l.years![0] === "number" ? Number(e.target.value) : e.target.value })}>
+                    {[...l.years].reverse().map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                )}
+                {l.years && l.years.length > 2 && (
+                  <button type="button" className={`btn btn-outline btn-sm${series === l.id ? " is-on" : ""}`} aria-expanded={series === l.id}
+                    title="Play the layer through a range of dates" onClick={() => {
+                      const open = series !== l.id;
+                      const next = { ...on };
+                      if (series && next[series]) next[series] = { ...next[series], series: false, preload: [] };
+                      next[l.id] = { ...next[l.id], series: open, ...(open ? {} : { preload: [] }) };
+                      setOn(next);
+                      setSeries(open ? l.id : null);
+                    }}>
+                    <Film aria-hidden="true" />Time series
+                  </button>
+                )}
+                {loading.has(l.id) && <LoaderCircle className="spin pw-sat-spin" aria-label="Loading map tiles" />}
+                {!l.view_only && !isVectorTiles(l) && (
+                  <button type="button" className="btn btn-outline btn-sm" title="Download a GeoTIFF of the values, clipped to the area" disabled={downloading === l.id} onClick={() => download(l)}>
+                    {downloading === l.id ? <LoaderCircle className="spin" aria-hidden="true" /> : <Download aria-hidden="true" />}GeoTIFF
+                  </button>
+                )}
+              </div>
+            )}
+            {st && series === l.id && l.years && (
+              <TimeSeries layer={l} value={st.year} loading={loading.has(l.id)}
+                onChange={(y) => patch(l.id, { year: y })}
+                onPreload={(ys) => { if ((st.preload ?? []).join() !== ys.join()) patch(l.id, { preload: ys }); }} />
+            )}
+            {st && errors[l.id] && <p className="pw-sat-error">{errors[l.id]}</p>}
+            {info === l.id && (
+              <div className="gp-info">
+                {l.desc && <p>{l.desc}</p>}
+                <dl>
+                  <div><dt>Source</dt><dd>{l.source}</dd></div>
+                  <div><dt>Resolution</dt><dd>{l.res}</dd></div>
+                  <div><dt>Period</dt><dd>{l.period}</dd></div>
+                  <div><dt>Use</dt><dd>{l.view_only || isVectorTiles(l) ? "View and print" : "View, print, download"}</dd></div>
+                  {isVectorTiles(l) && <div><dt>Note</dt><dd>Fields are drawn in full, not cut to the area outline.</dd></div>}
+                </dl>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>  );
+}
+
+const SPEEDS = [{ ms: 500, label: "0.5 s" }, { ms: 1000, label: "1 s" }, { ms: 2000, label: "2 s" }, { ms: 3000, label: "3 s" }];
+
+/**
+ * Time series player for a layer with several dates (Wayback imagery, monthly NDVI, yearly WaPOR): choose
+ * the first and last date, then drag the slider or play. A frame stays on screen for the chosen time once
+ * its tiles have loaded, so slow imagery never skips.
+ */
+export function TimeSeries({ layer, value, loading, onChange, onPreload }: {
+  layer: SatLayer; value?: number | string; loading: boolean; onChange: (y: number | string) => void;
+  /** The next frames to load in the background while playing (empty when paused). */
+  onPreload?: (ys: (number | string)[]) => void;
+}) {
+  const dates = layer.years ?? [];
+  const last = dates.length - 1;
+  const at = Math.max(0, dates.findIndex((d) => String(d) === String(value)));
+  const [from, setFrom] = useState(() => Math.max(0, (at || last) - 9));
+  const [to, setTo] = useState(() => at || last);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1000);
+  const [loop, setLoop] = useState(true);
+  const label = (layer.period_label ?? "Year").toLowerCase();
+  const go = (i: number) => onChange(dates[Math.min(Math.max(i, 0), last)]);
+
+  useEffect(() => {
+    if (!playing || loading) return;
+    const t = window.setTimeout(() => {
+      if (at < from || at >= to) {
+        if (at >= to && !loop) { setPlaying(false); return; }
+        go(from);
+      } else go(at + 1);
+    }, speed);
+    return () => window.clearTimeout(t);
+  }, [playing, loading, at, from, to, speed, loop]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // While playing, the map loads the next two frames in the background so they show without waiting.
+  useEffect(() => {
+    if (!onPreload) return;
+    if (!playing) { onPreload([]); return; }
+    const next: (number | string)[] = [];
+    for (let k = 1, i = at; k <= 2 && to > from; k++) {
+      i = i >= to || i < from ? from : i + 1;
+      if (i !== at) next.push(dates[i]);
+    }
+    onPreload(next);
+  }, [playing, at, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onPreload?.([]), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const frames = to - from + 1;
+  const frame = at >= from && at <= to ? at - from + 1 : 0;
+  return (
+    <div className="pw-ts" role="group" aria-label={`${layer.name} time series`}>
+      <div className="pw-ts-range">
+        <label>From
+          <select className="input" value={from} onChange={(e) => { const v = Number(e.target.value); setFrom(v); if (v > to) setTo(v); }}>
+            {dates.map((d, i) => <option key={String(d)} value={i}>{d}</option>)}
+          </select>
+        </label>
+        <label>To
+          <select className="input" value={to} onChange={(e) => { const v = Number(e.target.value); setTo(v); if (v < from) setFrom(v); }}>
+            {dates.map((d, i) => <option key={String(d)} value={i}>{d}</option>)}
+          </select>
+        </label>
+      </div>
+      <input type="range" className="pw-ts-slider" min={from} max={to} step={1} value={Math.min(Math.max(at, from), to)}
+        aria-label={`${layer.name} ${label}`} aria-valuetext={String(dates[at] ?? "")}
+        onChange={(e) => { setPlaying(false); go(Number(e.target.value)); }} />
+      <div className="pw-ts-ticks" aria-hidden="true"><span>{dates[from]}</span><span>{dates[to]}</span></div>
+      <div className="pw-ts-controls">
+        <button type="button" className="icon-btn" aria-label="Previous date" disabled={at <= from} onClick={() => { setPlaying(false); go(at - 1); }}><SkipBack aria-hidden="true" /></button>
+        <button type="button" className="btn btn-dark btn-sm pw-ts-play" onClick={() => { if (!playing && (at < from || at >= to)) go(from); setPlaying(!playing); }}>
+          {playing ? <><Pause aria-hidden="true" />Pause</> : <><Play aria-hidden="true" />Play</>}
+        </button>
+        <button type="button" className="icon-btn" aria-label="Next date" disabled={at >= to} onClick={() => { setPlaying(false); go(at + 1); }}><SkipForward aria-hidden="true" /></button>
+        <select className="input pw-ts-speed" value={speed} aria-label="Time per frame" onChange={(e) => setSpeed(Number(e.target.value))}>
+          {SPEEDS.map((sp) => <option key={sp.ms} value={sp.ms}>{sp.label} / frame</option>)}
+        </select>
+        <button type="button" className={`icon-btn${loop ? " is-on" : ""}`} aria-pressed={loop} aria-label="Loop" title="Start again after the last date" onClick={() => setLoop(!loop)}><Repeat aria-hidden="true" /></button>
+      </div>
+      <p className="pw-ts-now" aria-live="polite">
+        <strong>{dates[at]}</strong>
+        <span>{frame ? `Frame ${frame} of ${frames}` : `${frames} frames`}{loading ? " · loading…" : ""}</span>
       </p>
-      <div className="pw-filter">
-        <label className="psearch"><Search aria-hidden="true" /><input type="search" placeholder="Search layers or sources" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search data layers" /></label>
-        <span className="muted small">{onCount} on the map</span>
-      </div>
-      <div className="pw-datalayers-list">
-        {shown.map((g) => {
-          const active = g.layers.filter((l) => on[l.id]).length;
-          return (
-            <details key={g.group} className="gp-group" open>
-              <summary>
-                <span className="gp-group-type"><Grid3x3 aria-hidden="true" /></span>
-                <span className="gp-group-name">{g.group}</span>
-                <span className="gp-group-n">{active ? `${active} / ` : ""}{g.layers.length}</span>
-                <ChevronDown className="gp-chev" aria-hidden="true" />
-              </summary>
-              <ul>
-                {g.layers.map((l) => {
-                  const st = on[l.id];
-                  return (
-                    <li key={l.id} className={`gp-item${st ? " is-on" : ""}${loading.has(l.id) ? " is-loading" : ""}`}>
-                      <label className="gp-switch">
-                        <input type="checkbox" checked={!!st} onChange={() => setOn(toggleSat(on, l))} />
-                        <span className="gp-switch-ui" aria-hidden="true"></span>
-                        <span className="visually-hidden">Show {l.name}</span>
-                      </label>
-                      <div className="gp-item-body">
-                        <span className="gp-item-name">{l.name}</span>
-                        <span className="gp-item-meta">{l.view_only ? "View only · " : ""}{isVectorTiles(l) ? "Vector · " : ""}{l.source} · {l.res}</span>
-                      </div>
-                      <button type="button" className="gp-icon-btn gp-info-btn" aria-expanded={info === l.id} aria-label={`About ${l.name}`} onClick={() => setInfo(info === l.id ? null : l.id)}>
-                        <Info aria-hidden="true" />
-                      </button>
-                      {st && (
-                        <div className="pw-dl-row">
-                          {l.years && l.years.length > 1 && (
-                            <select className="input" value={st.year} aria-label={`${l.name} ${(l.period_label ?? "year").toLowerCase()}`}
-                              onChange={(e) => patch(l.id, { year: typeof l.years![0] === "number" ? Number(e.target.value) : e.target.value })}>
-                              {[...l.years].reverse().map((y) => <option key={y} value={y}>{y}</option>)}
-                            </select>
-                          )}
-                          {loading.has(l.id) && <LoaderCircle className="spin pw-sat-spin" aria-label="Loading map tiles" />}
-                          {!l.view_only && !isVectorTiles(l) && (
-                            <button type="button" className="btn btn-outline btn-sm" title="Download a GeoTIFF of the values, clipped to the area" disabled={downloading === l.id} onClick={() => download(l)}>
-                              {downloading === l.id ? <LoaderCircle className="spin" aria-hidden="true" /> : <Download aria-hidden="true" />}GeoTIFF
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {st && errors[l.id] && <p className="pw-sat-error">{errors[l.id]}</p>}
-                      {info === l.id && (
-                        <div className="gp-info">
-                          {l.desc && <p>{l.desc}</p>}
-                          <dl>
-                            <div><dt>Source</dt><dd>{l.source}</dd></div>
-                            <div><dt>Resolution</dt><dd>{l.res}</dd></div>
-                            <div><dt>Period</dt><dd>{l.period}</dd></div>
-                            <div><dt>Use</dt><dd>{l.view_only || isVectorTiles(l) ? "View and print" : "View, print, download"}</dd></div>
-                            {isVectorTiles(l) && <div><dt>Note</dt><dd>Fields are drawn in full, not cut to the area outline.</dd></div>}
-                          </dl>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </details>
-          );
-        })}
-        {shown.length === 0 && <p className="gp-empty">{needle ? "No layers match your search in this phase." : "No data layers for this phase yet."}</p>}
-      </div>
-      <p className="muted small pw-dl-next">Statistics over the area (zonal mean, totals per unit) for these layers are planned.</p>
     </div>
   );
 }

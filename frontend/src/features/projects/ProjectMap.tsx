@@ -6,7 +6,7 @@ import "@/features/projects/maplibre-worker";
 import * as maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, MapLayerMouseEvent, StyleSpecification } from "maplibre-gl";
 import { Protocol } from "pmtiles";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 
 import type { BBox, VectorStyle } from "@/features/projects/types";
@@ -21,6 +21,8 @@ import { SearchControl } from "@/shared/map/SearchControl";
 // globally, so the export's offscreen map can read the same sources from getStyle().
 maplibregl.addProtocol("pmtiles", new Protocol().tile);
 
+/** The data layer id of a map raster layer ("sat-wayback~3" -> "wayback"). */
+const satId = (layerId: string) => layerId.slice(4).split("~")[0];
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 const TEAL = "#0B3B47";
 const GOLD = "#C9A25B";
@@ -60,7 +62,9 @@ export type MapProps = {
   /** Raster previews (PNG) drawn under the area outline, e.g. analysis results. */
   images?: { id: string; url: string; bounds: [number, number, number, number]; opacity?: number }[];
   /** Raster tile layers (satellite data), drawn under analysis results and the area outline. */
-  rasters?: { id: string; tiles: string[]; opacity?: number; attribution?: string; minzoom?: number; maxzoom?: number }[];
+  rasters?: { id: string; tiles: string[]; opacity?: number; attribution?: string; minzoom?: number; maxzoom?: number;
+    /** Tile templates of the next periods to load unseen (a playing time series), so they show at once. */
+    preload?: string[][] }[];
   /** Vector tile layers read from PMTiles archives (e.g. field boundaries), drawn with the rasters. */
   vectorTiles?: { id: string; url: string; def: PmtilesDef; opacity?: number; threshold?: number; attribution?: string }[];
   /** Ids of raster layers whose map tiles are still loading (called whenever that set changes). */
@@ -232,22 +236,84 @@ export function ProjectMap(props: MapProps) {
     for (const i of props.images ?? []) if (m.getLayer(`img-${i.id}`)) m.setPaintProperty(`img-${i.id}`, "raster-opacity", i.opacity ?? 0.85);
   }, [imgOpacityKey, imagesKey, ready]);
   const rastersKey = (props.rasters ?? []).map((r) => r.id + r.tiles[0]).join("|");
+  // Raster layers are "sat-<id>~<n>". When a layer's period changes (a time series playing), the new period is
+  // added above the old one and the old one goes once the new tiles have loaded, so the map never flashes empty.
+  const satSeq = useRef(0);
+  const wantRasters = useRef(new Map<string, { tiles: string[] }>());
+  const satBorn = useRef(new Map<string, number>());
   useEffect(() => {
     const m = map.current;
     if (!m || !ready) return;
-    const want = new Map((props.rasters ?? []).map((r) => [`sat-${r.id}`, r]));
-    for (const layer of m.getStyle().layers ?? []) {
-      const src = m.getSource(layer.id) as { tiles?: string[] } | undefined;
-      if (layer.id.startsWith("sat-") && (!want.has(layer.id) || src?.tiles?.[0] !== want.get(layer.id)!.tiles[0])) { m.removeLayer(layer.id); m.removeSource(layer.id); }
-    }
+    const want = new Map((props.rasters ?? []).map((r) => [r.id, r]));
+    wantRasters.current = want;
+    const sats = () => (m.getStyle().layers ?? []).filter((l: { id: string }) => l.id.startsWith("sat-")).map((l: { id: string }) => l.id);
+    const tilesOf = (lid: string) => (m.getSource(lid) as { tiles?: string[] } | undefined)?.tiles?.[0];
+    for (const lid of sats()) if (!want.has(satId(lid))) { m.removeLayer(lid); m.removeSource(lid); }
     // Keep the panel order: each new layer goes under the analysis images and the area.
     const above = () => m.getStyle().layers?.find((l: { id: string }) => l.id.startsWith("img-"))?.id ?? "units-fill";
     for (const [id, r] of want) {
-      if (m.getSource(id)) continue;
-      m.addSource(id, { type: "raster", tiles: r.tiles, tileSize: 256, attribution: r.attribution, ...(r.minzoom ? { minzoom: r.minzoom } : {}), ...(r.maxzoom ? { maxzoom: r.maxzoom } : {}) });
-      m.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": r.opacity ?? 0.85 } }, above());
+      const mine = sats().filter((lid) => satId(lid) === id);
+      if (mine.some((lid) => tilesOf(lid) === r.tiles[0])) continue;
+      // Directly above the period shown now (if any), else in panel order.
+      const all = m.getStyle().layers ?? [];
+      const top = mine.length ? all[all.findIndex((l: { id: string }) => l.id === mine[mine.length - 1]) + 1]?.id : above();
+      const lid = `sat-${id}~${++satSeq.current}`;
+      satBorn.current.set(lid, Date.now());
+      m.addSource(lid, { type: "raster", tiles: r.tiles, tileSize: 256, attribution: r.attribution, ...(r.minzoom ? { minzoom: r.minzoom } : {}), ...(r.maxzoom ? { maxzoom: r.maxzoom } : {}) });
+      m.addLayer({ id: lid, type: "raster", source: lid, paint: { "raster-opacity": r.opacity ?? 0.85, "raster-fade-duration": mine.length ? 0 : 300 } }, top);
     }
+    prune();
   }, [rastersKey, ready]);
+  // Background loading of the next periods: invisible layers (opacity 0) whose tiles land in the browser cache.
+  const preloadKey = (props.rasters ?? []).map((r) => (r.preload ?? []).map((t) => t[0]).join(",")).join("|");
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    const want = new Map<string, { tiles: string[]; r: NonNullable<MapProps["rasters"]>[number] }>();
+    for (const r of props.rasters ?? []) (r.preload ?? []).forEach((tiles, k) => want.set(`pre-${r.id}-${k}`, { tiles, r }));
+    for (const l of m.getStyle().layers ?? []) {
+      if (!l.id.startsWith("pre-")) continue;
+      const src = (m.getSource(l.id) as { tiles?: string[] } | undefined)?.tiles?.[0];
+      if (want.get(l.id)?.tiles[0] !== src) { m.removeLayer(l.id); m.removeSource(l.id); }
+    }
+    const bottom = m.getStyle().layers?.find((l: { id: string }) => l.id.startsWith("sat-"))?.id;
+    for (const [id, { tiles, r }] of want) {
+      if (m.getSource(id)) continue;
+      m.addSource(id, { type: "raster", tiles, tileSize: 256, ...(r.minzoom ? { minzoom: r.minzoom } : {}), ...(r.maxzoom ? { maxzoom: r.maxzoom } : {}) });
+      m.addLayer({ id, type: "raster", source: id, paint: { "raster-opacity": 0 } }, bottom);
+    }
+  }, [preloadKey, ready]);
+  /** Remove the older periods of a raster once its current period has loaded (or after a few seconds). */
+  const prune = useCallback(() => {
+    const m = map.current;
+    if (!m) return;
+    const layers = (m.getStyle().layers ?? []).filter((l: { id: string }) => l.id.startsWith("sat-")).map((l: { id: string }) => l.id);
+    for (const [id, r] of wantRasters.current) {
+      const mine = layers.filter((lid: string) => satId(lid) === id);
+      const cur = mine.find((lid: string) => (m.getSource(lid) as { tiles?: string[] } | undefined)?.tiles?.[0] === r.tiles[0]);
+      if (!cur || mine.length < 2 || !m.isSourceLoaded(cur)) continue;
+      for (const lid of mine) if (lid !== cur) { m.removeLayer(lid); m.removeSource(lid); }
+    }
+  }, []);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    // Safety net: a period whose tiles never all load (an outside service timing out) still replaces the
+    // old one after 15 seconds.
+    const t = window.setInterval(() => {
+      const layers = (m.getStyle().layers ?? []).map((l: { id: string }) => l.id).filter((id: string) => id.startsWith("sat-"));
+      for (const [id, r] of wantRasters.current) {
+        const mine = layers.filter((lid: string) => satId(lid) === id);
+        const cur = mine.find((lid: string) => (m.getSource(lid) as { tiles?: string[] } | undefined)?.tiles?.[0] === r.tiles[0]);
+        if (cur && mine.length > 1 && Date.now() - (satBorn.current.get(cur) ?? 0) > 15000) {
+          for (const lid of mine) if (lid !== cur) { m.removeLayer(lid); m.removeSource(lid); }
+        }
+      }
+    }, 1000);
+    m.on("sourcedata", prune);
+    m.on("idle", prune);
+    return () => { window.clearInterval(t); m.off("sourcedata", prune); m.off("idle", prune); };
+  }, [ready, prune]);
   const vtKey = (props.vectorTiles ?? []).map((v) => v.id + v.url).join("|");
   useEffect(() => {
     const m = map.current;
@@ -299,7 +365,7 @@ export function ProjectMap(props: MapProps) {
     const report = () => {
       const ids = new Set<string>();
       for (const id of Object.keys(m.getStyle().sources ?? {})) {
-        if (id.startsWith("sat-") && !m.isSourceLoaded(id)) ids.add(id.slice(4));
+        if (id.startsWith("sat-") && !m.isSourceLoaded(id)) ids.add(satId(id));
         if (id.startsWith("vt-") && !m.isSourceLoaded(id)) ids.add(id.slice(3));
       }
       const key = [...ids].sort().join("|");
@@ -314,7 +380,10 @@ export function ProjectMap(props: MapProps) {
   useEffect(() => {
     const m = map.current;
     if (!m || !ready) return;
-    for (const r of props.rasters ?? []) if (m.getLayer(`sat-${r.id}`)) m.setPaintProperty(`sat-${r.id}`, "raster-opacity", r.opacity ?? 0.85);
+    for (const l of m.getStyle().layers ?? []) {
+      const r = l.id.startsWith("sat-") ? (props.rasters ?? []).find((x) => x.id === satId(l.id)) : undefined;
+      if (r) m.setPaintProperty(l.id, "raster-opacity", r.opacity ?? 0.85);
+    }
   }, [opacityKey, rastersKey, ready]);
   const vectorsKey = (props.vectors ?? []).map((v) => v.id + v.url).join("|");
   useEffect(() => {

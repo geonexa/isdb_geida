@@ -72,6 +72,27 @@ class ManifestSchemaTests(AnalysisTestCase):
         self.assertIn("type longitude, latitude", _clean_params(m, {"outlet": "north"}, area)[1]["outlet"])
         self.assertIn("more than 10 km", _clean_params(m, {"outlet": "35, 2.3"}, area)[1]["outlet"])
 
+    def test_when_rules_and_choice_availability(self):
+        """A parameter whose `when` rule fails is skipped (even a required point); a choice offered only with other
+        values is refused with the ones that are available."""
+        from .views import _clean_params
+        m = {"parameters": [
+            {"name": "variable", "type": "choice", "default": "A", "label": "Data",
+             "choices": [{"value": "A", "label": "A"}, {"value": "B", "label": "B"}]},
+            {"name": "step", "type": "choice", "default": "M", "label": "Time step",
+             "choices": [{"value": "M", "label": "Monthly", "when": {"variable": ["A"]}},
+                         {"value": "Y", "label": "Annual"}]},
+            {"name": "aoi", "type": "choice", "default": "area", "label": "Where",
+             "choices": [{"value": "area", "label": "Area"}, {"value": "point", "label": "Point"}]},
+            {"name": "point", "type": "point", "label": "Point", "when": {"aoi": ["point"]}},
+            {"name": "layer", "type": "layer", "geometry": "polygon", "label": "Layer", "when": {"aoi": ["layer"]}},
+        ]}
+        validate_manifest({**GOOD, "parameters": m["parameters"]})
+        self.assertEqual(_clean_params(m, {})[0], {"variable": "A", "step": "M", "aoi": "area"})
+        self.assertIn("Pick a point", _clean_params(m, {"aoi": "point"})[1]["point"])
+        self.assertIn("isn't available with these settings; choose Annual",
+                      _clean_params(m, {"variable": "B", "step": "M"})[1]["step"])
+
     def test_every_analysis_in_the_repository_is_valid(self):
         errors = []
         read_manifests(errors)
